@@ -6,9 +6,8 @@ github
 
 # Agent files
 AGENTS.md
-SESSIONS.md
-docs\SESSIONS.md
+docs/SESSIONS.md
 
 # Databases
-agents\rag\data\chroma\*
-agents\text2sql\data\*
+agents/rag/data/chroma/
+agents/text2sql/data/
