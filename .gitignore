@@ -5,8 +5,9 @@
 github
 
 # Agent files
+docs\SESSIONS.md
 AGENTS.md
 
 # Databases
-agents\text2sql\data\Chinook.db
-agents\rag\data\chroma\*
+# agents\rag\data\chroma\*
+# agents\text2sql\data\*
