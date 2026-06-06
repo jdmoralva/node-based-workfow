@@ -1,2 +1,9 @@
 # Environment files
 .env
+
+# Other projects refferenced
+github
+
+# Agent files
+AGENTS.md
+
