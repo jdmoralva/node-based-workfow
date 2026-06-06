@@ -25,12 +25,16 @@ El MVP debe entregar tres capacidades integradas:
 - Referencias funcionales existentes:
   - `agents/text2sql`
   - `agents/rag`
+- Todo lo encontrado dentro de `github/` debe tratarse como archivos de referencia para la funcionalidad del MVP.
 
 ## 3. Principios de Implementacion
 
 - Reutilizar la logica prototipo de `agents/text2sql` y `agents/rag` como referencia de comportamiento, no como API lista para produccion.
+- Reutilizar la logica del proyecto `github/orange3` como referencia de comportamiento.
 - Separar claramente el dominio de producto de los experimentos actuales en `agents/`.
 - Mantener el MVP determinista en sus flujos criticos: ejecucion de pipeline, calculo analitico y exportacion.
+- El canvas debe ejecutar los flujos de izquierda a derecha y propagar datos y selecciones entre nodos conectados.
+- El sistema debe permitir inspeccion de datos intermedios en tabla y soporte para guardar y reabrir workflows.
 - El chat no debe exponer SQL, prompts internos ni razonamiento intermedio.
 - El canvas debe modelar explicitamente dos nodos analiticos distintos, no un unico nodo ambiguo.
 
@@ -45,8 +49,10 @@ El MVP debe entregar tres capacidades integradas:
 - Panel lateral de nodos
 - Panel derecho de configuracion
 - Vista de ejecucion y resultados
+- Vista de tabla para inspeccion de datos
 - Panel de chat
 - Pantallas de datasets y pipelines guardados
+- Interaccion de seleccion de filas y resaltado de subconjuntos
 
 ### Backend `apps/api` o equivalente
 
@@ -57,6 +63,7 @@ El MVP debe entregar tres capacidades integradas:
 - Servicio NL2SQL para consultas del portafolio
 - Servicio RAG para interpretacion y ayuda contextual
 - Servicio de exportacion PDF/PPT
+- Servicio de persistencia de workflows y trazabilidad de ejecucion
 
 ### Datos
 
@@ -76,11 +83,12 @@ El MVP debe entregar tres capacidades integradas:
 
 1. Usuario interactua con canvas o chat en `Next.js`.
 2. `Next.js` consume API HTTP en `FastAPI`.
-3. `FastAPI` persiste datasets, pipelines, ejecuciones y sesiones en la base de metadatos.
+3. `FastAPI` persiste datasets, pipelines, ejecuciones, sesiones y artefactos de exportacion en la base de metadatos.
 4. Para consultas de portafolio, `FastAPI` usa servicio NL2SQL y ejecuta SQL en `SQLite`.
 5. Para interpretacion de resultados y ayuda, `FastAPI` usa servicio RAG contra Chroma construido desde `agents/rag/data/knowledge/`.
-6. Para analisis de cosechas, `FastAPI` ejecuta calculos deterministas en Python y devuelve tablas, metricas y datos de grafico.
-7. Para exportacion, `FastAPI` genera PDF/PPT desde una representacion estructurada del resultado.
+6. Para la preparacion de datos, `FastAPI` ejecuta transformaciones deterministas en Python y devuelve datos preprocesados, tablas y metadatos de seleccion.
+7. Para analisis de cosechas, `FastAPI` ejecuta calculos deterministas en Python y devuelve tablas, metricas y datos de grafico.
+8. Para exportacion, `FastAPI` genera PDF/PPT desde una representacion estructurada del resultado y conserva trazabilidad del workflow usado.
 
 ## 5. Alcance Tecnico del MVP
 
@@ -90,12 +98,15 @@ El MVP debe entregar tres capacidades integradas:
 - Seleccion de datasets precargados
 - Perfilado basico de dataset
 - Canvas de pipelines con persistencia
+- Inspeccion de datos en tabla
+- Seleccion y propagacion de subconjuntos entre vistas
 - Nodos de preparacion basica
 - Nodo de cosechas de mora
 - Nodo de cosechas de default
 - Ejecucion secuencial con validacion previa apoyada por job runner liviano
 - Resultados tabulares y graficos
 - Exportacion PDF/PPT
+- Reporte trazable de ejecucion
 - Chat de asistencia contextual
 - Chat de consulta de portafolio sobre `SQLite`
 
@@ -164,6 +175,7 @@ agents/
 - `row_count`
 - `status`
 - `created_at`
+- `storage_path` apunta al archivo fuente; `table_name` apunta a la tabla materializada cuando aplique.
 
 ### Pipeline
 
@@ -171,7 +183,7 @@ agents/
 - `name`
 - `description`
 - `dataset_id`
-- `graph_json`
+- `graph_json` (fuente canonica del flujo)
 - `status`
 - `created_at`
 - `updated_at`
@@ -192,6 +204,7 @@ agents/
 - `pipeline_id`
 - `source_node_id`
 - `target_node_id`
+- `PipelineNode` y `PipelineEdge` son derivaciones tecnicas del `graph_json` para validacion y consulta interna.
 
 ### Execution
 
@@ -215,6 +228,16 @@ agents/
 - `input_snapshot_json`
 - `output_snapshot_json`
 - `error_detail`
+
+### SelectionSnapshot
+
+- `id`
+- `execution_id`
+- `source_node_id`
+- `selected_rows_json`
+- `selected_columns_json`
+- `created_at`
+- snapshot de la seleccion activa usada durante la ejecucion
 
 ### ChatSession
 
@@ -283,20 +306,29 @@ Cada nodo debe cumplir este contrato logico:
   "inputs": ["upstream_node_id"],
   "config": {},
   "output": {
-    "kind": "dataset|report|chart",
+    "kind": "dataset|selection|analysis_result|chart|report",
     "payload_ref": "execution-scoped reference"
   }
 }
 ```
 
-## 8.2 Compatibilidad
+## 8.2 Tipos de Output
+
+- `dataset`: tabla tabular utilizable por nodos posteriores.
+- `selection`: subconjunto derivado de una interaccion de seleccion en el canvas.
+- `analysis_result`: paquete estructurado con tabla principal, metricas, serie para grafico y metadatos.
+- `chart`: representacion grafica consumible por el frontend.
+- `report`: artefacto narrativo o de exportacion asociado a una ejecucion.
+
+## 8.3 Compatibilidad
 
 - Nodos de ingesta no reciben entradas.
 - Nodos de preparacion reciben un dataset tabular y retornan un dataset tabular.
 - Nodos de analisis reciben un dataset tabular validado y retornan un `analysis_result`.
-- Nodos de salida reciben un `analysis_result` o dataset tabular, segun el tipo.
+- Nodos de salida reciben un `analysis_result`, un `dataset` o una `selection`, segun el tipo.
+- Las columnas fisicas del dataset deben poder mapearse a las columnas logicas requeridas por cada nodo analitico.
 
-## 8.3 Nodo `vintage_delinquency_analysis`
+## 8.4 Nodo `vintage_delinquency_analysis`
 
 ### Objetivo
 
@@ -306,59 +338,83 @@ Calcular curvas o tablas de cosecha orientadas a mora (saldo vencido), usando re
 
 - dataset tabular
 - columnas minimas configuradas por el usuario
+- mapeo desde columnas fisicas del dataset hacia columnas logicas del nodo
 
 ### Config minima
 
-- `customer_id_column`
 - `account_id_column`
 - `origination_date_column`
 - `observation_date_column`
 - `days_past_due_column`
-- `balance_column`
+- `past_due_balance_column`
+- `original_balance_column`
 - `segment_columns`
 - `vintage_threshold`
 - `performing_window`
 
+### Reglas metodologicas
+
+- `vintage_threshold` representa el numero de dias de atraso a partir del cual una observacion se considera morosa.
+- Los periodos que no cumplan `performing_window` se excluyen del analisis.
+
 ### Output
 
-- tabla agregada por vintage y periodo
+- tabla agregada por cohorte, periodo de observacion, segmentacion o ambos
 - metricas resumen
 - serie lista para grafico
-- narrativa corta para el chat de interpretacion
+- narrativa corta para el chat de interpretacion orientada a mora over
 
-## 8.4 Nodo `vintage_default_analysis`
+La definicion metodologica obligatoria del calculo vive en `docs/METHODOLOGY.md`.
+En caso de conflicto entre la definicion generica del nodo y el anexo metodologico, prevalece `docs/METHODOLOGY.md`.
+
+## 8.5 Nodo `vintage_default_analysis`
 
 ### Objetivo
 
 Calcular curvas o tablas de cosecha orientadas a default, separadas del flujo de mora.
 
+### Input esperado
+
+- dataset tabular
+- columnas minimas configuradas por el usuario
+- mapeo desde columnas fisicas del dataset hacia columnas logicas del nodo
+
 ### Config minima
 
-- `customer_id_column`
 - `account_id_column`
 - `origination_date_column`
 - `observation_date_column`
-- `default_flag_column`
-- `balance_column`
+- `days_past_due_column`
 - `segment_columns`
 - `vintage_threshold`
 - `performing_window`
 
+### Reglas metodologicas
+
+- `vintage_threshold` representa el numero de dias de atraso a partir del cual una observacion se considera default para el MVP.
+- Los periodos que no cumplan `performing_window` se excluyen del analisis.
+
 ### Output
 
-- tabla agregada por vintage y periodo
+- tabla agregada por cohorte, periodo de observacion, segmentacion o ambos
 - metricas resumen
 - serie lista para grafico
-- narrativa corta para el chat de interpretacion
+- narrativa corta para el chat de interpretacion orientada a default ever
+- la metrica principal del nodo se calcula por numero de cuentas
 
-## 8.5 Validaciones Previas
+La definicion metodologica obligatoria del calculo vive en `docs/METHODOLOGY.md`.
+En caso de conflicto entre la definicion generica del nodo y el anexo metodologico, prevalece `docs/METHODOLOGY.md`.
+
+## 8.6 Validaciones Previas
 
 - pipeline con al menos un nodo de entrada y uno de salida
 - grafo aciclico
 - un solo dataset fuente por ejecucion MVP
 - configuraciones requeridas presentes
+- columnas logicas requeridas mapeadas desde el dataset fuente
 - columnas requeridas existentes en dataset
 - tipos compatibles con el nodo seleccionado
+- los periodos que no cumplan `performing_window` se excluyen del calculo del nodo
 
 ## 9. Flujo de Ejecucion del Pipeline
 
@@ -366,9 +422,10 @@ Calcular curvas o tablas de cosecha orientadas a default, separadas del flujo de
 2. Backend valida estructura y configuracion.
 3. Backend ordena nodos topologicamente.
 4. Backend ejecuta nodo por nodo.
-5. Cada salida se guarda como referencia temporal dentro de la ejecucion.
-6. Si un nodo falla, la ejecucion se detiene y se registra error por nodo.
-7. Si el pipeline termina correctamente, se persiste `result_json` consolidado.
+5. Las selecciones y filtros activos se preservan como contexto de ejecucion y afectan el procesamiento downstream.
+6. Cada salida se guarda como referencia temporal dentro de la ejecucion.
+7. Si un nodo falla, la ejecucion se detiene y se registra error por nodo.
+8. Si el pipeline termina correctamente, se persiste `result_json` consolidado.
 
 ## 9.1 Estrategia de Ejecucion MVP
 
@@ -379,6 +436,8 @@ Calcular curvas o tablas de cosecha orientadas a default, separadas del flujo de
 ## 10. Diseno del Chat
 
 ## 10.1 Modos de Chat
+
+En MVP, el cliente envia el `mode` de forma explicita; el backend no infiere el modo automaticamente.
 
 ### Modo A: Asistencia de Producto
 
@@ -450,6 +509,7 @@ Flujo:
 - `GET /api/datasets/{dataset_id}`
 - `POST /api/datasets/preloaded/{dataset_key}/register`
 - `GET /api/datasets/{dataset_id}/preview`
+- `GET /api/datasets/{dataset_id}/mapping`
 
 ## 11.2 Pipelines
 
@@ -486,7 +546,7 @@ Flujo:
 {
   "name": "Cosechas mora retail",
   "dataset_id": "ds_001",
-  "graph": {
+  "graph_json": {
     "nodes": [],
     "edges": []
   }
@@ -513,6 +573,7 @@ Flujo:
 - fuente principal para consultas de negocio del MVP
 - debe incluir al menos uno o mas datasets precargados en tablas consultables
 - debe existir un catalogo de tablas habilitadas para NL2SQL
+- los datasets cargados se registran con archivo fuente y, cuando aplica, con una tabla materializada para ejecucion y consultas
 
 ## 12.2 Metadatos de App
 
@@ -550,7 +611,7 @@ Se recomienda persistir estos metadatos en una base `SQLite` separada de la base
 ## 13.3 Chat
 
 - panel lateral o inferior persistente
-- selector de modo automatico o contextual
+- selector de modo explicito
 - historial por sesion
 - respuestas con tono ejecutivo y centradas en resultado final
 
@@ -582,7 +643,7 @@ Se recomienda persistir estos metadatos en una base `SQLite` separada de la base
 
 ## 15.1 MVP
 
-- autenticacion basica si la app se expone a usuarios reales
+- autenticacion basica obligatoria en MVP
 - autorizacion simple por rol opcional en MVP
 - consultas SQL en modo solo lectura
 - no exponer secrets en frontend
@@ -660,10 +721,8 @@ Cada log critico debe incluir:
 - `agents/text2sql/main.py` hoy ejecuta una pregunta hard-coded al importar; no puede integrarse tal cual
 - `SQLite` simplifica el MVP, pero limita concurrencia y volumen para etapas posteriores
 - exportacion dual PDF/PPT incrementa complejidad de templates desde MVP
+- el repositorio actual aun no contiene la app productiva ni la base real del portafolio del MVP
 
 ## 20. Decisiones Pendientes No Bloqueantes
 
-- usar dos archivos `SQLite` separados: uno para la base del portafolio y otro para metadata de la aplicacion
-- ejecutar los pipelines con un job runner liviano en MVP
-- detectar automaticamente el modo del chat por intencion del usuario
-- usar `python-pptx` para la generacion de PPTX en backend
+- No quedan decisiones pendientes no bloqueantes para las areas cubiertas por esta SPEC.

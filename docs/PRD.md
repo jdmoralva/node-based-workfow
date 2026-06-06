@@ -48,11 +48,15 @@ El MVP debe validar que un usuario puede:
 - validacion basica de flujo
 - manejo de errores por nodo
 - logging basico
+- inspeccion de datos en tabla y vista previa de subconjuntos seleccionados
+- seleccion manual de filas y propagacion de la seleccion entre vistas conectadas
+- preparacion de datos como paso explicito del flujo, incluyendo seleccion de columnas, filtrado y tratamiento basico de nulos
 - nodo de analisis de cosechas de mora
 - nodo de analisis de cosechas de default
 - visualizacion basica de resultados
 - exportacion a PDF o PPT
-- guardado del pipeline para reutilizacion
+- guardado y reapertura de pipelines para reutilizacion
+- exportacion de resultados y reportes trazables asociados a la ejecucion
 - chat IA asistente del canvas
 - chat IA para consultas a base de datos del portafolio
 
@@ -141,6 +145,11 @@ Debe permitir:
 - configurar parametros
 - ejecutar el pipeline
 - visualizar estado por nodo
+- inspeccionar datos intermedios en tabla
+- seleccionar subconjuntos de datos y reutilizarlos en pasos posteriores
+- aplicar transformaciones basicas de preparacion antes del analisis
+- guardar y reabrir pipelines
+- mantener trazabilidad de la ejecucion y de los resultados exportados
 
 ### 9.2 Nodos Iniciales
 
@@ -157,6 +166,7 @@ Debe permitir:
 - tratamiento basico de nulos
 - segmentacion simple
 - tipificacion de campos
+- previsualizacion de datos y subconjuntos
 
 #### Analisis
 
@@ -168,6 +178,7 @@ Debe permitir:
 - tabla de resultados
 - visualizacion basica
 - exportacion en PDF o PPT
+- reporte trazable de la ejecucion
 
 ### 9.3 Chat IA
 
@@ -237,6 +248,7 @@ No debe mostrar:
 
 - `agents/text2sql`
 - `agents/rag`
+- todo lo encontrado dentro de `github/` debe tratarse como archivo de referencia para la funcionalidad del MVP
 
 ## 13. Arquitectura Funcional
 
