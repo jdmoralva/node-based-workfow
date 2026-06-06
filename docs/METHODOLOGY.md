@@ -15,8 +15,8 @@ Este anexo define las reglas metodologicas obligatorias para los nodos de cosech
 
 - Un vintage agrupa cuentas originadas en el mismo mes calendario.
 - Cada observacion del vintage se compara contra el periodo de observacion correspondiente.
-- `vintage_threshold` representa el numero de dias de atraso a partir del cual se considera una operacion como vencida.
-- `performing_window` representa la ventana inicial de meses posteriores a la originacion usada para clasificar el comportamiento como vigente/performing.
+- `vintage_threshold` representa el numero de dias de atraso usado por los nodos para marcar una observacion como morosa o en default, segun el analisis ejecutado.
+- `performing_window` representa la ventana inicial de meses posteriores a la originacion; los periodos que no cumplan esta ventana se excluyen del analisis.
 
 ## 4. Metodologia de Cosechas de Mora
 
