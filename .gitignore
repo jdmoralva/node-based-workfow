@@ -5,9 +5,9 @@
 github
 
 # Agent files
+AGENTS.md
 SESSIONS.md
 docs\SESSIONS.md
-AGENTS.md
 
 # Databases
 agents\rag\data\chroma\*
