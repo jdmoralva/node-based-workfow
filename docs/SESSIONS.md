@@ -1,7 +1,0 @@
-# SESSIONS
-
-## SPRINT-00
-
-ISSUE-000: `ses_16285bc42ffeAh0cHWwJsvQ9h0` (PRD)
-ISSUE-000: `ses_16119e361ffeld91O7NaQFLu6r` (DDR)
-
