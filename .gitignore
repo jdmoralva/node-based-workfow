@@ -9,5 +9,5 @@ docs\SESSIONS.md
 AGENTS.md
 
 # Databases
-# agents\rag\data\chroma\*
-# agents\text2sql\data\*
+agents\rag\data\chroma\*
+agents\text2sql\data\*
