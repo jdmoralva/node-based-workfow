@@ -8,6 +8,5 @@ github
 AGENTS.md
 
 # Databases
-agents/text2sql/data/Chiook.db
-agents/rag/data/chroma/*
-
+agents\text2sql\data\Chinook.db
+agents\rag\data\chroma\*
