@@ -2,11 +2,7 @@
 .env
 
 # Other projects refferenced
-github
-
-# Agent files
-AGENTS.md
-docs/SESSIONS.md
+github/
 
 # Databases
 agents/rag/data/chroma/
