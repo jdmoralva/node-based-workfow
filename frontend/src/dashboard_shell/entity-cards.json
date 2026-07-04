@@ -1,0 +1,62 @@
+{
+  "applications": [
+    {
+      "title": "Reporting",
+      "menuLabel": "Reporting app options",
+      "badgeIcon": "icon-grid",
+      "selected": true,
+      "href": "services.html",
+      "linkLabel": "Open services",
+      "metaAria": "Reporting application details",
+      "meta": [
+        { "label": "Modules", "icon": "icon-grid" },
+        { "label": "Links", "icon": "icon-branch" },
+        { "label": "Warnings", "icon": "icon-alert" },
+        { "label": "Workspaces", "icon": "icon-briefcase" }
+      ]
+    },
+    {
+      "title": "AI Copilot",
+      "menuLabel": "AI Copilot app options",
+      "badgeIcon": "icon-grid",
+      "metaAria": "AI Copilot application details",
+      "meta": [
+        { "label": "Modules", "icon": "icon-grid" },
+        { "label": "Links", "icon": "icon-branch" },
+        { "label": "Warnings", "icon": "icon-alert" },
+        { "label": "Workspaces", "icon": "icon-briefcase" }
+      ]
+    },
+    {
+      "title": "Documentation",
+      "menuLabel": "Documentation app options",
+      "badgeIcon": "icon-grid",
+      "metaAria": "Documentation application details",
+      "meta": [
+        { "label": "Modules", "icon": "icon-grid" },
+        { "label": "Links", "icon": "icon-branch" },
+        { "label": "Warnings", "icon": "icon-alert" },
+        { "label": "Workspaces", "icon": "icon-briefcase" }
+      ]
+    }
+  ],
+  "services": [
+    {
+      "title": "CreditModeler",
+      "deleteLabel": "Delete CreditModeler",
+      "moreLabel": "More CreditModeler options",
+      "href": "creditmodeler-service.html",
+      "linkLabel": "Open CreditModeler service"
+    },
+    {
+      "title": "Mortgage",
+      "deleteLabel": "Delete Mortgage",
+      "moreLabel": "More Mortgage options"
+    },
+    {
+      "title": "PayrollDeduction",
+      "deleteLabel": "Delete PayrollDeduction",
+      "moreLabel": "More PayrollDeduction options"
+    }
+  ]
+}

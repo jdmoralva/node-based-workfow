@@ -1,0 +1,28 @@
+{
+  "servicesToolbar": {
+    "placement": "content",
+    "variant": "services-toolbar",
+    "ariaLabel": "Services actions",
+    "title": "SERVICES",
+    "tools": [
+      { "label": "Refresh services", "icon": "icon-refresh" },
+      { "label": "Export services", "icon": "icon-download" },
+      { "label": "Search services", "icon": "icon-search" }
+    ],
+    "action": {
+      "label": "Add New Service",
+      "dot": true
+    }
+  },
+  "creditmodelerStagebar": {
+    "placement": "breadcrumb",
+    "variant": "stagebar",
+    "ariaLabel": "Service stages",
+    "items": [
+      { "label": "Design", "active": true },
+      { "label": "Test", "active": false },
+      { "label": "Deploy", "active": false },
+      { "label": "Run", "active": false }
+    ]
+  }
+}

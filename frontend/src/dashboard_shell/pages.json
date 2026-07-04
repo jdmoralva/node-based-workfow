@@ -1,0 +1,101 @@
+[
+  {
+    "output": "index.html",
+    "title": "Risk Viewer Applications",
+    "bodyClass": "",
+    "styles": ["style.css"],
+    "bootstrapKey": "card-grid",
+    "activeNav": "applications",
+    "breadcrumbs": [
+      { "type": "home", "href": "index.html" },
+      { "type": "current", "label": "Applications" }
+    ],
+    "pageSpec": {
+      "type": "card-grid",
+      "hero": {
+        "ariaLabel": "Page title and actions",
+        "title": "APPLICATIONS",
+        "actionLabel": "Create Application"
+      },
+      "cards": {
+        "ariaLabel": "Application cards",
+        "entityCards": { "variant": "environment", "collection": "applications" }
+      }
+    }
+  },
+  {
+    "output": "applications.html",
+    "title": "Risk Viewer Applications",
+    "bodyClass": "",
+    "styles": ["style.css"],
+    "bootstrapKey": "card-grid",
+    "activeNav": "applications",
+    "breadcrumbs": [
+      { "type": "home", "href": "applications.html" },
+      { "type": "current", "label": "Applications" }
+    ],
+    "pageSpec": {
+      "type": "card-grid",
+      "hero": {
+        "ariaLabel": "Page title and actions",
+        "title": "APPLICATIONS",
+        "actionLabel": "Create Application"
+      },
+      "cards": {
+        "ariaLabel": "Application cards",
+        "entityCards": { "variant": "environment", "collection": "applications" }
+      }
+    }
+  },
+  {
+    "output": "services.html",
+    "title": "Risk Viewer Services",
+    "bodyClass": "services-page",
+    "styles": ["style.css"],
+    "bootstrapKey": null,
+    "activeNav": "applications",
+    "breadcrumbs": [
+      { "type": "home", "href": "applications.html" },
+      { "type": "link", "href": "applications.html", "label": "Applications" },
+      { "type": "current", "label": "Services" }
+    ],
+    "pageSpec": {
+      "type": "service-list",
+      "headerAddon": "servicesToolbar",
+      "cards": {
+        "ariaLabel": "Service cards",
+        "entityCards": { "variant": "service", "collection": "services" }
+      }
+    }
+  },
+  {
+    "output": "creditmodeler-service.html",
+    "title": "Risk Viewer CreditModeler Service",
+    "bodyClass": "creditmodeler-page",
+    "styles": ["style.css"],
+    "bootstrapKey": "creditmodeler-service",
+    "activeNav": "applications",
+    "breadcrumbs": [
+      { "type": "home", "href": "applications.html" },
+      { "type": "link", "href": "applications.html", "label": "Applications" },
+      { "type": "link", "href": "services.html", "label": "Services" },
+      { "type": "current", "label": "CreditModeler" }
+    ],
+    "pageSpec": {
+      "type": "workbench",
+      "headerAddon": "creditmodelerStagebar",
+      "workbench": {
+        "ariaLabel": "CreditModeler service workbench",
+        "treePanelAriaLabel": "Object tree",
+        "canvasAriaLabel": "Design canvas",
+        "searchRegionAriaLabel": "Search objects",
+        "searchInputAriaLabel": "Search",
+        "addObjectAriaLabel": "Add object",
+        "gridViewAriaLabel": "Grid view",
+        "branchViewAriaLabel": "Branch view",
+        "treeMenu": "creditmodelerObjects",
+        "canvasHint": "There is currently no business logic open now. You can create a new business logic window or open one from the object tree."
+      }
+    }
+  }
+]

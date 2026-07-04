@@ -11,3 +11,7 @@ docs/SESSIONS.md
 # Databases
 agents/rag/data/chroma/
 agents/text2sql/data/
+
+# Build files
+__pycache__/
+*.pyc
