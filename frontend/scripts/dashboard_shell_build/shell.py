@@ -36,6 +36,12 @@ def build_runtime_script(bootstrap_key: str | None) -> str:
             ],
             "bootstrap": "bootstrapCreditmodelerServicePage",
         },
+        "login-page": {
+            "sources": [
+                "assets/js/pages/login-page.js",
+            ],
+            "bootstrap": "bootstrapLoginPage",
+        },
     }
 
     def inline_module_source(relative_path: str) -> str:

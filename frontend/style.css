@@ -311,6 +311,7 @@ button {
   background: linear-gradient(180deg, #ffffff, #eef5f4);
   color: #7f868f;
   box-shadow: 0 9px 16px rgba(161, 205, 197, 0.22);
+  text-decoration: none;
 }
 
 .cards-grid {
@@ -726,6 +727,187 @@ body.creditmodeler-page .content {
   padding-right: 14px;
   padding-top: 18px;
   padding-bottom: 28px;
+}
+
+body.login-page .sidebar {
+  display: none;
+}
+
+body.login-page .page-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+body.login-page .topbar {
+  position: static;
+}
+
+body.login-page .topbar__row--utility {
+  min-height: 72px;
+}
+
+body.login-page .topbar__row--breadcrumb {
+  min-height: 36px;
+}
+
+body.login-page .content {
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  padding-left: 40px;
+  padding-right: 40px;
+  padding-top: 28px;
+  padding-bottom: 32px;
+}
+
+body.login-page .sidebar__stack--bottom {
+  display: none;
+}
+
+.login-panel {
+  width: min(100%, 720px);
+  margin: 0;
+  display: grid;
+  gap: 22px;
+  transform: translateY(-36px);
+}
+
+.login-panel__header {
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+  margin-bottom: 0;
+}
+
+.login-panel__ribbon {
+  grid-column: auto;
+  justify-self: center;
+  min-width: min(100%, 360px);
+  max-width: 100%;
+}
+
+.login-panel__support {
+  max-width: 34rem;
+  margin: 0;
+  text-align: center;
+  font-size: 0.96rem;
+  line-height: 1.5;
+  color: #61697a;
+}
+
+.login-form-card {
+  display: grid;
+  gap: 16px;
+  padding: 28px 30px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff, #f9fbff 78%);
+  border: 1px solid rgba(114, 117, 159, 0.18);
+  box-shadow: 0 18px 34px rgba(37, 49, 82, 0.1);
+}
+
+.login-form-card__field {
+  display: grid;
+  gap: 8px;
+}
+
+.login-form-card__label {
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #535c6f;
+}
+
+.login-form-card__input {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(116, 117, 168, 0.28);
+  background: linear-gradient(180deg, #ffffff, #f5f7fb);
+  color: var(--text);
+  font: inherit;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.login-form-card__input:focus {
+  outline: 2px solid rgba(116, 117, 168, 0.18);
+  border-color: rgba(95, 98, 157, 0.5);
+}
+
+.login-form-card__input--invalid {
+  border-color: rgba(162, 77, 87, 0.6);
+  background: linear-gradient(180deg, #fffefe, #fff5f6);
+}
+
+.login-form-card__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.login-form-card__submit {
+  grid-column: auto;
+  justify-self: auto;
+}
+
+.login-form-card__feedback,
+.login-form-card__result {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.login-form-card__feedback {
+  color: #a24d57;
+}
+
+.login-form-card__result {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(116, 117, 168, 0.08);
+  color: #505872;
+}
+
+@media (max-width: 900px) {
+  body.login-page .content {
+    padding-left: 28px;
+    padding-right: 28px;
+    padding-top: 24px;
+    padding-bottom: 28px;
+  }
+
+  .login-panel {
+    width: min(100%, 680px);
+    transform: translateY(-22px);
+  }
+}
+
+@media (max-width: 640px) {
+  body.login-page .topbar__row--utility {
+    min-height: 64px;
+  }
+
+  body.login-page .topbar__row--breadcrumb {
+    min-height: 34px;
+  }
+
+  body.login-page .content {
+    padding-top: 20px;
+    padding-bottom: 24px;
+  }
+
+  .login-panel {
+    gap: 18px;
+    transform: none;
+  }
+
+  .login-panel__ribbon {
+    min-width: 100%;
+  }
+
+  .login-form-card {
+    padding: 24px 20px;
+  }
 }
 
 body.creditmodeler-page .topbar__row--breadcrumb {

@@ -29,9 +29,9 @@ description: "Task list for implementing the internal user login frontend featur
 
 **Purpose**: Create the login-page source files that the generator and later user-story work will build on.
 
-- [ ] T001 Create the login page partial scaffold in `frontend/src/dashboard_shell/partials/login-page.html`
-- [ ] T002 [P] Create the login page bootstrap scaffold in `frontend/assets/js/pages/login-page.js`
-- [ ] T003 [P] Add the initial login page source entry in `frontend/src/dashboard_shell/pages.json`
+- [X] T001 Create the login page partial scaffold in `frontend/src/dashboard_shell/partials/login-page.html`
+- [X] T002 [P] Create the login page bootstrap scaffold in `frontend/assets/js/pages/login-page.js`
+- [X] T003 [P] Add the initial login page source entry in `frontend/src/dashboard_shell/pages.json`
 
 ---
 
@@ -41,10 +41,10 @@ description: "Task list for implementing the internal user login frontend featur
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T004 Implement the `login-form` page rendering branch in `frontend/scripts/dashboard_shell_build/page_specs.py`
-- [ ] T005 [P] Register the login page bootstrap bundle in `frontend/scripts/dashboard_shell_build/shell.py`
-- [ ] T006 [P] Add shared login surface, unauthenticated shell-state, and form styles in `frontend/style.css`
-- [ ] T007 Update generated login-page regression coverage in `frontend/scripts/tests/test_build_dashboard_shell.py`
+- [X] T004 Implement the `login-form` page rendering branch in `frontend/scripts/dashboard_shell_build/page_specs.py`
+- [X] T005 [P] Register the login page bootstrap bundle in `frontend/scripts/dashboard_shell_build/shell.py`
+- [X] T006 [P] Add shared login surface, unauthenticated shell-state, and form styles in `frontend/style.css`
+- [X] T007 Update generated login-page regression coverage in `frontend/scripts/tests/test_build_dashboard_shell.py`
 
 **Checkpoint**: Foundation ready; the login page can be rendered by the shell generator and verified by the focused frontend test.
 
@@ -58,10 +58,10 @@ description: "Task list for implementing the internal user login frontend featur
 
 ### Implementation for User Story 1
 
-- [ ] T008 [P] [US1] Update the entry-page hero action markup to support navigation in `frontend/src/dashboard_shell/partials/card-grid-hero.html`
-- [ ] T009 [US1] Pass hero action link metadata through `frontend/scripts/dashboard_shell_build/page_specs.py`
-- [ ] T010 [US1] Define `index.html` sign-in navigation and `login.html` page metadata, including the unauthenticated login-page shell state, in `frontend/src/dashboard_shell/pages.json`
-- [ ] T011 [P] [US1] Build the static internal login layout and credential fields in `frontend/src/dashboard_shell/partials/login-page.html`
+- [X] T008 [P] [US1] Update the entry-page hero action markup to support navigation in `frontend/src/dashboard_shell/partials/card-grid-hero.html`
+- [X] T009 [US1] Pass hero action link metadata through `frontend/scripts/dashboard_shell_build/page_specs.py`
+- [X] T010 [US1] Define `index.html` sign-in navigation and `login.html` page metadata, including the unauthenticated login-page shell state, in `frontend/src/dashboard_shell/pages.json`
+- [X] T011 [P] [US1] Build the static internal login layout and credential fields in `frontend/src/dashboard_shell/partials/login-page.html`
 
 **Checkpoint**: User Story 1 is complete when users can reach a styled dedicated login page from the existing frontend entry point.
 
@@ -75,9 +75,9 @@ description: "Task list for implementing the internal user login frontend featur
 
 ### Implementation for User Story 2
 
-- [ ] T012 [P] [US2] Implement placeholder submit handling, result-state messaging, and no-storage/no-session-simulation guards in `frontend/assets/js/pages/login-page.js`
-- [ ] T013 [P] [US2] Add the primary sign-in action hooks and placeholder result region in `frontend/src/dashboard_shell/partials/login-page.html`
-- [ ] T014 [US2] Set the login page bootstrap key and placeholder copy in `frontend/src/dashboard_shell/pages.json`
+- [X] T012 [P] [US2] Implement placeholder submit handling, result-state messaging, and no-storage/no-session-simulation guards in `frontend/assets/js/pages/login-page.js`
+- [X] T013 [P] [US2] Add the primary sign-in action hooks and placeholder result region in `frontend/src/dashboard_shell/partials/login-page.html`
+- [X] T014 [US2] Set the login page bootstrap key and placeholder copy in `frontend/src/dashboard_shell/pages.json`
 
 **Checkpoint**: User Story 2 is complete when completed credentials trigger a frontend-only informational placeholder flow with no session simulation.
 
@@ -91,9 +91,9 @@ description: "Task list for implementing the internal user login frontend featur
 
 ### Implementation for User Story 3
 
-- [ ] T015 [US3] Extend the login controller with required-field validation and field-reset behavior in `frontend/assets/js/pages/login-page.js`
-- [ ] T016 [US3] Add field-level validation message containers and invalid-state hooks in `frontend/src/dashboard_shell/partials/login-page.html`
-- [ ] T017 [US3] Style login validation and feedback states in `frontend/style.css`
+- [X] T015 [US3] Extend the login controller with required-field validation and field-reset behavior in `frontend/assets/js/pages/login-page.js`
+- [X] T016 [US3] Add field-level validation message containers and invalid-state hooks in `frontend/src/dashboard_shell/partials/login-page.html`
+- [X] T017 [US3] Style login validation and feedback states in `frontend/style.css`
 
 **Checkpoint**: User Story 3 is complete when required-field validation blocks incomplete submissions and updates feedback as the user corrects inputs.
 
@@ -103,9 +103,9 @@ description: "Task list for implementing the internal user login frontend featur
 
 **Purpose**: Finalize documentation, generated outputs, and focused verification across the whole feature.
 
-- [ ] T018 [P] Update login-page rebuild, preview, and unauthenticated-shell notes in `frontend/README.md`
-- [ ] T019 Rebuild generated outputs for `frontend/index.html` and `frontend/login.html` using `frontend/scripts/build_dashboard_shell.py`
-- [ ] T020 Confirm final focused shell verification expectations, including no storage/session simulation checks, in `frontend/scripts/tests/test_build_dashboard_shell.py`
+- [X] T018 [P] Update login-page rebuild, preview, and unauthenticated-shell notes in `frontend/README.md`
+- [X] T019 Rebuild generated outputs for `frontend/index.html` and `frontend/login.html` using `frontend/scripts/build_dashboard_shell.py`
+- [X] T020 Confirm final focused shell verification expectations, including no storage/session simulation checks, in `frontend/scripts/tests/test_build_dashboard_shell.py`
 
 ---
 

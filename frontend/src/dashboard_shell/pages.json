@@ -15,7 +15,9 @@
       "hero": {
         "ariaLabel": "Page title and actions",
         "title": "APPLICATIONS",
-        "actionLabel": "Create Application"
+        "actionLabel": "Sign In",
+        "actionHref": "login.html",
+        "actionAriaLabel": "Go to login"
       },
       "cards": {
         "ariaLabel": "Application cards",
@@ -95,6 +97,32 @@
         "branchViewAriaLabel": "Branch view",
         "treeMenu": "creditmodelerObjects",
         "canvasHint": "There is currently no business logic open now. You can create a new business logic window or open one from the object tree."
+      }
+    }
+  },
+  {
+    "output": "login.html",
+    "title": "Risk Viewer Sign In",
+    "bodyClass": "login-page",
+    "styles": ["style.css"],
+    "bootstrapKey": "login-page",
+    "activeNav": "applications",
+    "breadcrumbs": [
+      { "type": "home", "href": "index.html" },
+      { "type": "current", "label": "Sign In" }
+    ],
+    "pageSpec": {
+      "type": "login-form",
+      "loginForm": {
+        "ariaLabel": "Internal user sign in",
+        "title": "SIGN IN",
+        "supportText": "",
+        "usernameLabel": "Username",
+        "usernameRequiredMessage": "Username is required.",
+        "passwordLabel": "Password",
+        "passwordRequiredMessage": "Password is required.",
+        "submitLabel": "Sign In",
+        "placeholderMessage": "Frontend-only placeholder."
       }
     }
   }

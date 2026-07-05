@@ -1,5 +1,6 @@
 # Environment files
 .env
+.env.*
 
 # Other projects refferenced
 github/
@@ -11,3 +12,15 @@ agents/text2sql/data/
 # Build files
 __pycache__/
 *.pyc
+.venv/
+venv/
+dist/
+*.egg-info/
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.vscode/
+.idea/
