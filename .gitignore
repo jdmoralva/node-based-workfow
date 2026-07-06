@@ -11,10 +11,12 @@ agents/text2sql/data/
 
 # Build files
 __pycache__/
+.pytest_cache/
 *.pyc
 .venv/
 venv/
 dist/
+build/
 *.egg-info/
 
 # Editor and OS files

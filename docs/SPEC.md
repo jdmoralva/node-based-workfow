@@ -44,6 +44,7 @@ El MVP debe entregar tres capacidades integradas:
 
 ### Frontend `apps/web` o equivalente
 
+- Mientras `apps/web` no exista, el shell actual vive en `frontend/` y debe integrarse con `apps/api` exclusivamente via HTTP.
 - `Next.js` App Router
 - Canvas visual de nodos
 - Panel lateral de nodos
