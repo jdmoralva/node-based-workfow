@@ -13,7 +13,7 @@ export function ApplicationGrid({ cards }: ApplicationGridProps) {
   const { selectedTitle, selectCard } = useCardSelection(initialSelection);
 
   return (
-    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+    <div className="rv-application-grid" data-testid="application-grid">
       {cards.map((card) => (
         <ApplicationCard card={card} isSelected={selectedTitle === card.title} key={card.title} onSelect={selectCard} />
       ))}

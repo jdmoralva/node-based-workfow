@@ -1,15 +1,11 @@
 import type { ReactNode } from "react";
 
 type PageHeaderProps = {
-  breadcrumbs: ReactNode;
   hero: ReactNode;
 };
 
-export function PageHeader({ breadcrumbs, hero }: PageHeaderProps) {
+export function PageHeader({ hero }: PageHeaderProps) {
   return (
-    <div className="space-y-4">
-      {breadcrumbs}
-      {hero}
-    </div>
+    <div className="rv-page-header">{hero}</div>
   );
 }

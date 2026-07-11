@@ -11,8 +11,12 @@
     "format": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test --grep-invert @visual",
-    "test:visual": "playwright test --grep @visual"
+    "test:e2e": "playwright test tests/e2e --grep-invert @visual",
+    "test:e2e:responsive": "playwright test tests/e2e/responsive-layout.spec.ts tests/e2e/responsive-usability.spec.ts",
+    "test:visual": "playwright test --config playwright.config.ts tests/visual/migrated-pages.spec.ts tests/visual/layout-geometry.spec.ts tests/e2e/visual-baseline-governance.spec.ts tests/e2e/desktop-layout-checks.spec.ts tests/e2e/visual-repeatability.spec.ts",
+    "test:visual:desktop": "playwright test --config playwright.config.ts tests/visual/migrated-pages.spec.ts tests/visual/layout-geometry.spec.ts tests/e2e/visual-baseline-governance.spec.ts tests/e2e/desktop-layout-checks.spec.ts tests/e2e/visual-repeatability.spec.ts",
+    "test:visual:repeatability": "npm run test:visual:desktop && npm run test:visual:desktop",
+    "test:visual:legacy": "playwright test --config playwright.legacy.config.ts --update-snapshots"
   },
   "dependencies": {
     "next": "15.0.3",

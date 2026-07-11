@@ -15,12 +15,9 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   return (
-    <ApplicationShell activeNav={routeDefinitions.home.activeNav}>
-      <div className="space-y-8 lg:space-y-10">
-        <PageHeader
-          breadcrumbs={<Breadcrumbs items={breadcrumbMap.home} />}
-          hero={<HeroRibbon actionHref={routePaths.login} actionLabel="Sign In" title="APPLICATIONS" />}
-        />
+    <ApplicationShell activeNav={routeDefinitions.home.activeNav} breadcrumbs={<Breadcrumbs items={breadcrumbMap.home} />} pageKind={routeDefinitions.home.pageKind}>
+      <div>
+        <PageHeader hero={<HeroRibbon actionHref={routePaths.login} actionLabel="Sign In" title="APPLICATIONS" />} />
         <ApplicationGrid cards={applicationCards} />
       </div>
     </ApplicationShell>

@@ -31,5 +31,5 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Test screenshots
-__screenshots__/
+# Playwright artifacts
+apps/web/tests/visual/artifacts/

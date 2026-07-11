@@ -1,8 +1,11 @@
 import { test, expect } from "@playwright/test";
 
+import { waitForStablePage } from "../helpers/wait-for-stable-page";
+
 test.describe("frontend-only local interactions", () => {
   test("shows login validation without backend effects", async ({ page }) => {
     await page.goto("/login");
+    await waitForStablePage(page);
     await page.getByRole("button", { name: "Sign In" }).click();
 
     await expect(page.getByText("Username is required.")).toBeVisible();
@@ -17,18 +20,20 @@ test.describe("frontend-only local interactions", () => {
 
   test("updates selected application card state locally", async ({ page }) => {
     await page.goto("/applications");
+    await waitForStablePage(page);
 
     const reportingCard = page.getByTestId("application-card-Reporting");
     const documentationCard = page.getByTestId("application-card-Documentation");
 
     await expect(reportingCard).toHaveAttribute("data-selected", "true");
-    await documentationCard.click({ position: { x: 40, y: 40 } });
+    await documentationCard.click();
     await expect(documentationCard).toHaveAttribute("data-selected", "true");
     await expect(reportingCard).toHaveAttribute("data-selected", "false");
   });
 
   test("expands and selects workbench tree items locally", async ({ page }) => {
     await page.goto("/creditmodeler-service");
+    await waitForStablePage(page);
 
     const variablesToggle = page.getByRole("button", { name: "Variables submenu" });
     await expect(variablesToggle).toHaveAttribute("aria-expanded", "false");

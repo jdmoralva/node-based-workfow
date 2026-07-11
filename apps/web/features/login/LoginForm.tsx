@@ -23,58 +23,56 @@ export function LoginForm() {
   };
 
   return (
-    <section className="mx-auto max-w-[560px] rounded-[32px] border border-white/70 bg-white/95 p-8 shadow-panel backdrop-blur md:p-10">
-      <div className="space-y-6">
-        <div className="space-y-2 text-center">
-          <p className="m-0 text-xs font-semibold uppercase tracking-[0.26em] text-brand">Internal access</p>
-          <h2 className="m-0 text-3xl font-semibold text-slate-950">Account Access</h2>
-          <p className="m-0 text-sm text-muted">Use internal credentials to continue.</p>
+    <section className="rv-login-panel" data-testid="login-panel">
+      <div className="flex justify-center">
+        <div className="rv-hero rv-hero--compact" data-testid="page-hero">
+          <span aria-hidden="true" className="rv-hero__edge" />
+          <h1>SIGN IN</h1>
+          <span aria-hidden="true" className="rv-hero__edge" />
         </div>
-        <form className="space-y-5" noValidate onSubmit={handleSubmit}>
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-800" htmlFor="username">
+      </div>
+      <form className="rv-login-form" noValidate onSubmit={handleSubmit}>
+          <div className="grid gap-2">
+            <label className="rv-login-form__label" htmlFor="username">
               Username
             </label>
             <input
               aria-describedby={usernameError ? "username-error" : undefined}
-              className="w-full rounded-[20px] border border-border bg-slate-50 px-4 py-3 shadow-sm outline-none transition focus:border-brand focus:bg-white"
+              className={`rv-login-form__input ${usernameError ? "rv-login-form__input--invalid" : ""}`}
               id="username"
               name="username"
               type="text"
             />
             {usernameError ? (
-              <p className="m-0 text-sm font-medium text-rose-600" id="username-error">
+              <p className="rv-login-form__feedback" id="username-error">
                 {usernameError}
               </p>
             ) : null}
           </div>
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-800" htmlFor="password">
+          <div className="grid gap-2">
+            <label className="rv-login-form__label" htmlFor="password">
               Password
             </label>
             <input
               aria-describedby={passwordError ? "password-error" : undefined}
-              className="w-full rounded-[20px] border border-border bg-slate-50 px-4 py-3 shadow-sm outline-none transition focus:border-brand focus:bg-white"
+              className={`rv-login-form__input ${passwordError ? "rv-login-form__input--invalid" : ""}`}
               id="password"
               name="password"
               type="password"
             />
             {passwordError ? (
-              <p className="m-0 text-sm font-medium text-rose-600" id="password-error">
+              <p className="rv-login-form__feedback" id="password-error">
                 {passwordError}
               </p>
             ) : null}
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-            <p className="m-0 text-xs font-medium text-muted">
-              {submitted ? "Frontend-only placeholder." : "Client-side validation only during migration."}
-            </p>
-            <button className="rounded-full bg-brand px-6 py-3 text-sm font-semibold text-white shadow-card transition hover:bg-[#193cdc]" type="submit">
+          <div className="flex items-center justify-end gap-3 pt-2">
+            {submitted ? <p className="rv-login-form__result mr-auto">Frontend-only placeholder.</p> : null}
+            <button className="rv-hero__action border-0" type="submit">
               Sign In
             </button>
           </div>
         </form>
-      </div>
     </section>
   );
 }

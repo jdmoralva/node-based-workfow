@@ -15,9 +15,9 @@ export const metadata: Metadata = {
 
 export default function ApplicationsPage() {
   return (
-    <ApplicationShell activeNav={routeDefinitions.applications.activeNav}>
-      <div className="space-y-8 lg:space-y-10">
-        <PageHeader breadcrumbs={<Breadcrumbs items={breadcrumbMap.applications} />} hero={<HeroRibbon actionLabel="Create Application" title="APPLICATIONS" />} />
+    <ApplicationShell activeNav={routeDefinitions.applications.activeNav} breadcrumbs={<Breadcrumbs items={breadcrumbMap.applications} />} pageKind={routeDefinitions.applications.pageKind}>
+      <div>
+        <PageHeader hero={<HeroRibbon actionLabel="Create Application" title="APPLICATIONS" />} />
         <ApplicationGrid cards={applicationCards} />
       </div>
     </ApplicationShell>

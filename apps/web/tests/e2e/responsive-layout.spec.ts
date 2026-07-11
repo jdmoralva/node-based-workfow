@@ -1,18 +1,26 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import { requiredViewports } from "../helpers/viewports";
+import { hasHorizontalOverflow, measureElement } from "../helpers/measure-layout";
+import { waitForStablePage } from "../helpers/wait-for-stable-page";
 
 const routeChecks = [
-  { path: "/", heading: "APPLICATIONS" },
-  { path: "/login", heading: "SIGN IN" },
-  { path: "/applications", heading: "APPLICATIONS" },
-  { path: "/services", heading: "SERVICES" },
-  { path: "/creditmodeler-service", heading: "CREDITMODELER" }
+  { path: "/", heading: "APPLICATIONS", primaryRegionTestId: "application-grid", requiresAppNav: true },
+  { path: "/login", heading: "SIGN IN", primaryRegionTestId: "login-panel", requiresAppNav: false },
+  { path: "/applications", heading: "APPLICATIONS", primaryRegionTestId: "application-grid", requiresAppNav: true },
+  { path: "/services", heading: "SERVICES", primaryRegionTestId: "service-grid", requiresAppNav: true },
+  {
+    path: "/creditmodeler-service",
+    heading: null,
+    primaryRegionTestId: "workbench",
+    requiresAppNav: true
+  }
 ] as const;
 
-const viewportCases = Object.entries(requiredViewports) as Array<
-  [keyof typeof requiredViewports, (typeof requiredViewports)[keyof typeof requiredViewports]]
->;
+const viewportCases = [
+  ["tablet", requiredViewports.tablet],
+  ["mobile", requiredViewports.mobile]
+] as const;
 
 test.describe("responsive layout coverage", () => {
   for (const [viewportLabel, viewport] of viewportCases) {
@@ -20,10 +28,24 @@ test.describe("responsive layout coverage", () => {
       test(`${routeCheck.path} remains usable at ${viewportLabel}`, async ({ page }) => {
         await page.setViewportSize(viewport);
         await page.goto(routeCheck.path);
+        await waitForStablePage(page);
 
-        await expect(page.getByRole("heading", { name: routeCheck.heading })).toBeVisible();
+        if (routeCheck.heading) {
+          await expect(page.getByRole("heading", { name: routeCheck.heading })).toBeVisible();
+        }
 
-        const horizontalScroll = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+        await expect(page.getByTestId(routeCheck.primaryRegionTestId)).toBeVisible();
+
+        if (routeCheck.requiresAppNav) {
+          await expect(page.getByTestId("app-sidebar")).toBeVisible();
+          await expect(page.getByTestId("app-sidebar").getByRole("link", { name: "Applications" })).toBeVisible();
+        }
+
+        const regionBox = await measureElement(page.getByTestId(routeCheck.primaryRegionTestId));
+        expect(regionBox.x).toBeGreaterThanOrEqual(0);
+        expect(regionBox.x + regionBox.width).toBeLessThanOrEqual(viewport.width + 1);
+
+        const horizontalScroll = await hasHorizontalOverflow(page);
         expect(horizontalScroll).toBe(false);
       });
     }

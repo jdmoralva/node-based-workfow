@@ -1,7 +1,5 @@
 "use client";
 
-import type { CSSProperties } from "react";
-
 import { Icon } from "@/components/icons/Icon";
 import type { TreeMenuItem } from "@/config/tree-menu";
 
@@ -21,37 +19,41 @@ export function ObjectTreeItem({ expandedState, item, onSelect, onToggle, depth 
   const hasChildren = Boolean(item.children?.length);
   const isExpanded = item.toggle ? expandedState.get(nodeKey) ?? item.toggle.expanded : true;
   const isSelected = selectedKey === nodeKey;
-  const style: CSSProperties = { paddingLeft: `${depth * 12}px` };
 
   return (
-    <li className="space-y-2" style={style}>
-      <div className="flex items-center gap-2">
+    <li className="rv-tree-item" data-depth={depth}>
+      <div className="rv-tree-item__row">
         {hasChildren ? (
           <button
             aria-controls={item.toggle?.controls}
             aria-expanded={isExpanded}
             aria-label={item.toggle?.label}
-            className="rounded-full border border-border bg-white px-2 py-1 text-xs font-medium text-slate-600"
+            className="rv-tree-item__toggle"
             onClick={() => onToggle(nodeKey)}
             type="button"
           >
-            {isExpanded ? "-" : "+"}
+            <span className={`rv-tree-item__caret ${isExpanded ? "rv-tree-item__caret--down" : ""}`} />
           </button>
         ) : (
-          <span className="inline-block w-8" />
+          <span className="rv-tree-item__spacer" />
         )}
         <button
           aria-pressed={isSelected}
-          className={`flex flex-1 items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition ${isSelected ? "bg-brand text-white" : "text-slate-700 hover:bg-slate-100"}`}
+          className={`rv-tree-item__option ${depth === 0 ? "rv-tree-item__option--top" : ""} ${isSelected ? "rv-tree-item__option--selected" : ""}`}
           onClick={() => onSelect(nodeKey)}
           type="button"
         >
-          <Icon className={`h-4 w-4 ${isSelected ? "text-white" : "text-brand"}`} name={item.icon as never} />
-          <span>{item.label}</span>
+          <Icon className="rv-tree-item__icon" name={item.icon as never} />
+          <span className="rv-tree-item__label">{item.label}</span>
+          {item.more ? (
+            <span aria-hidden="true" className="rv-tree-item__more">
+              <Icon className="h-[0.9rem] w-[0.9rem]" name="icon-ellipsis" />
+            </span>
+          ) : null}
         </button>
       </div>
       {hasChildren && isExpanded ? (
-        <ul className="space-y-2" id={item.toggle?.controls}>
+        <ul className="rv-tree-children" id={item.toggle?.controls}>
           {item.children?.map((child) => (
             <ObjectTreeItem
               depth={depth + 1}

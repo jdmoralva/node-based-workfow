@@ -12,7 +12,7 @@ export function ServiceGrid({ cards }: ServiceGridProps) {
   const { selectedTitle, selectCard } = useCardSelection();
 
   return (
-    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+    <div className="rv-service-grid" data-testid="service-grid">
       {cards.map((card) => (
         <ServiceCard card={card} isSelected={selectedTitle === card.title} key={card.title} onSelect={selectCard} />
       ))}

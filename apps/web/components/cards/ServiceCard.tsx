@@ -14,35 +14,33 @@ export function ServiceCard({ card, isSelected, onSelect }: ServiceCardProps) {
   const href = resolveCardDestination(card.destination);
   const content = (
     <>
-      <div className="relative z-10 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="rounded-full bg-slate-100 p-2 text-brand">
-            <Icon className="h-5 w-5" name="icon-briefcase" />
-          </span>
-          <h3 className="m-0 text-lg font-semibold text-slate-900">{card.title}</h3>
-        </div>
-        <div className="flex gap-2">
-          <button aria-label={card.deleteLabel} className="rounded-full border border-border px-3 py-2 text-sm text-muted" onClick={(event) => event.stopPropagation()} type="button">
-            Delete
-          </button>
-          <button aria-label={card.moreLabel} className="rounded-full border border-border p-2 text-muted" onClick={(event) => event.stopPropagation()} type="button">
-            <Icon className="h-4 w-4" name="icon-ellipsis" />
-          </button>
-        </div>
+      <span aria-hidden="true" className="absolute left-[18px] top-[18px] z-10 h-[10px] w-[10px] rounded-full bg-[#8b8f96] opacity-75" />
+      <div className="rv-service-card__actions z-20">
+        <button aria-label={card.deleteLabel} className="flex h-[30px] w-[30px] items-center justify-center rounded-full border-0 bg-transparent text-[#7479a8]" onClick={(event) => event.stopPropagation()} type="button">
+          <Icon className="h-4 w-4" name="icon-trash" />
+        </button>
+        <button aria-label={card.moreLabel} className="flex h-[30px] w-[30px] items-center justify-center rounded-full border-0 bg-transparent text-[#7479a8]" onClick={(event) => event.stopPropagation()} type="button">
+          <Icon className="h-4 w-4" name="icon-ellipsis" />
+        </button>
       </div>
-      {card.linkLabel ? <span className="pointer-events-none relative z-10 mt-4 inline-flex text-sm font-semibold text-brand">{card.linkLabel}</span> : null}
+      <div className="pointer-events-none flex w-full max-w-[18rem] flex-col items-center justify-center gap-[18px]">
+        <span className="rv-service-card__icon">
+          <Icon className="h-5 w-5" name="icon-cube" />
+        </span>
+        <h3>{card.title}</h3>
+      </div>
     </>
   );
 
-  const className = `relative block min-h-[156px] rounded-[30px] border border-border bg-white p-5 shadow-card ${href ? "hover:-translate-y-0.5 hover:shadow-panel transition" : "cursor-default"} ${isSelected ? "ring-2 ring-brand/30" : ""}`;
+  const className = "rv-service-card";
 
   return href ? (
-    <article className={className} data-selected={String(isSelected)}>
-      <Link aria-label={card.linkLabel ?? `Open ${card.title}`} className="absolute inset-0 rounded-[28px]" href={href} onClick={() => onSelect(card.title)} />
+    <article className={className} data-selected={String(isSelected)} data-testid={`service-card-${card.title}`}>
+      <Link aria-label={card.linkLabel ?? `Open ${card.title}`} className="absolute inset-0 z-[5] rounded-[28px]" href={href} onClick={() => onSelect(card.title)} />
       {content}
     </article>
   ) : (
-    <article className={className} data-selected={String(isSelected)} onClick={() => onSelect(card.title)}>
+    <article className={className} data-selected={String(isSelected)} data-testid={`service-card-${card.title}`} onClick={() => onSelect(card.title)}>
       {content}
     </article>
   );

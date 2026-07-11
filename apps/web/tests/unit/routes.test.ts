@@ -49,13 +49,14 @@ describe("migrated route pages", () => {
 
     expect(screen.getByRole("heading", { name: "SERVICES" })).toBeInTheDocument();
     expect(screen.getByText("CreditModeler")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create Service" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add New Service" })).toBeInTheDocument();
   });
 
   it("renders the CreditModeler workbench page content", () => {
     render(createElement(CreditModelerServicePage));
 
-    expect(screen.getByRole("heading", { name: "CREDITMODELER" })).toBeInTheDocument();
+    expect(screen.getByText("CreditModeler")).toBeInTheDocument();
+    expect(screen.getByLabelText("Workflow stages")).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Service objects" })).toBeInTheDocument();
     expect(screen.getByText(/There is currently no business logic open now/i)).toBeInTheDocument();
   });

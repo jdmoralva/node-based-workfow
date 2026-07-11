@@ -1,10 +1,10 @@
-const stages = ["Data", "Logic", "Results"];
+const stages = ["DESIGN", "TEST", "DEPLOY", "RUN"];
 
 export function StageBar() {
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-slate-50 px-4 py-3">
+    <div aria-label="Workflow stages" className="rv-stagebar" data-testid="stage-bar">
       {stages.map((stage, index) => (
-        <span className={`rounded-full px-3 py-1 text-sm ${index === 0 ? "bg-brand text-white" : "bg-white text-slate-700"}`} key={stage}>
+        <span className={`rv-stagebar__item ${index === 0 ? "rv-stagebar__item--active" : ""}`} key={stage}>
           {stage}
         </span>
       ))}
