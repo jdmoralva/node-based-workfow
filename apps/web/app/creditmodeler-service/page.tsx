@@ -23,9 +23,7 @@ export default function CreditModelerServicePage() {
       pageKind={routeDefinitions.creditModelerService.pageKind}
       topbarSupplement={<StageBar />}
     >
-      <div>
-        <Workbench hint={canvasHint} menu={creditModelerTreeMenu} />
-      </div>
+      <Workbench hint={canvasHint} menu={creditModelerTreeMenu} />
     </ApplicationShell>
   );
 }

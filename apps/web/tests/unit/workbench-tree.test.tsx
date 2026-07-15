@@ -2,7 +2,29 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { ObjectTree } from "@/components/workbench/ObjectTree";
-import { creditModelerTreeMenu } from "@/config/tree-menu";
+import { creditModelerTreeMenu, type TreeMenuDefinition } from "@/config/tree-menu";
+
+const oversizedLabelMenu: TreeMenuDefinition = {
+  ariaLabel: "Service objects",
+  items: [
+    {
+      label: "Risk Analytics",
+      icon: "icon-briefcase",
+      kind: "submenu",
+      toggle: {
+        expanded: true,
+        controls: "analytics-submenu",
+        label: "Analytics submenu"
+      },
+      children: [
+        {
+          label: "FutureWorkflowThatNeedsMoreHorizontalSpaceThanTheApprovedDesktopPanelAllows",
+          icon: "icon-branch"
+        }
+      ]
+    }
+  ]
+};
 
 describe("ObjectTree", () => {
   it("renders submenu toggles with their initial expanded state", () => {
@@ -23,5 +45,14 @@ describe("ObjectTree", () => {
 
     await user.click(screen.getByRole("button", { name: "AdjustedIncome" }));
     expect(screen.getByRole("button", { name: "AdjustedIncome" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("exposes the full oversized label through an ellipsis fallback title", () => {
+    render(<ObjectTree menu={oversizedLabelMenu} />);
+
+    expect(screen.getByText("FutureWorkflowThatNeedsMoreHorizontalSpaceThanTheApprovedDesktopPanelAllows")).toHaveAttribute(
+      "title",
+      "FutureWorkflowThatNeedsMoreHorizontalSpaceThanTheApprovedDesktopPanelAllows"
+    );
   });
 });

@@ -11,8 +11,12 @@ export function Workbench({ hint, menu }: WorkbenchProps) {
   return (
     <div className="rv-workbench" data-testid="workbench">
       <div className="rv-workbench__canvas">
-        <ObjectTree menu={menu} />
-        <CanvasPanel hint={hint} />
+        <div className="rv-workbench__tree-column">
+          <ObjectTree menu={menu} />
+        </div>
+        <div className="rv-workbench__canvas-column">
+          <CanvasPanel hint={hint} />
+        </div>
       </div>
     </div>
   );

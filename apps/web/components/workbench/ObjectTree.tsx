@@ -29,18 +29,20 @@ export function ObjectTree({ menu }: ObjectTreeProps) {
           <Icon className="h-[0.95rem] w-[0.95rem]" name="icon-branch" />
         </button>
       </div>
-      <ul className="rv-tree-list">
-        {menu.items.map((item) => (
-          <ObjectTreeItem
-            expandedState={expandedState}
-            item={item}
-            key={item.label}
-            onSelect={selectNode}
-            onToggle={toggleNode}
-            selectedKey={selectedKey}
-          />
-        ))}
-      </ul>
+      <div className="rv-tree-body" data-testid="workbench-tree-body">
+        <ul className="rv-tree-list">
+          {menu.items.map((item) => (
+            <ObjectTreeItem
+              expandedState={expandedState}
+              item={item}
+              key={item.label}
+              onSelect={selectNode}
+              onToggle={toggleNode}
+              selectedKey={selectedKey}
+            />
+          ))}
+        </ul>
+      </div>
     </nav>
   );
 }

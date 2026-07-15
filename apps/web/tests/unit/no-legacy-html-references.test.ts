@@ -22,7 +22,11 @@ describe("production source safeguards", () => {
   it("keeps legacy .html references out of production source files", () => {
     const sourceFiles = sourceRoots.flatMap((root) => collectSourceFiles(path.join(process.cwd(), root)));
 
-    const offenders = sourceFiles.filter((filePath) => fs.readFileSync(filePath, "utf8").includes(".html"));
+    const offenders = sourceFiles.filter((filePath) => {
+      const fileContents = fs.readFileSync(filePath, "utf8");
+
+      return fileContents.includes(".html") || fileContents.includes(".htm");
+    });
 
     expect(offenders).toEqual([]);
   });

@@ -9,3 +9,5 @@ export const desktopBaselineViewports = {
   desktopStandard: requiredViewports.desktopStandard,
   desktopWide: requiredViewports.desktopWide
 } as const;
+
+export const creditModelerDesktopViewports = desktopBaselineViewports;

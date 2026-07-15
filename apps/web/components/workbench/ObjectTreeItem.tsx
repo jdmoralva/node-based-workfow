@@ -1,5 +1,7 @@
 "use client";
 
+import type { CSSProperties } from "react";
+
 import { Icon } from "@/components/icons/Icon";
 import type { TreeMenuItem } from "@/config/tree-menu";
 
@@ -19,10 +21,11 @@ export function ObjectTreeItem({ expandedState, item, onSelect, onToggle, depth 
   const hasChildren = Boolean(item.children?.length);
   const isExpanded = item.toggle ? expandedState.get(nodeKey) ?? item.toggle.expanded : true;
   const isSelected = selectedKey === nodeKey;
+  const depthOffset = `${depth * 12}px`;
 
   return (
     <li className="rv-tree-item" data-depth={depth}>
-      <div className="rv-tree-item__row">
+      <div className="rv-tree-item__row" style={{ "--rv-tree-depth-offset": depthOffset } as CSSProperties}>
         {hasChildren ? (
           <button
             aria-controls={item.toggle?.controls}
@@ -44,7 +47,9 @@ export function ObjectTreeItem({ expandedState, item, onSelect, onToggle, depth 
           type="button"
         >
           <Icon className="rv-tree-item__icon" name={item.icon as never} />
-          <span className="rv-tree-item__label">{item.label}</span>
+          <span className="rv-tree-item__label" title={item.label}>
+            {item.label}
+          </span>
           {item.more ? (
             <span aria-hidden="true" className="rv-tree-item__more">
               <Icon className="h-[0.9rem] w-[0.9rem]" name="icon-ellipsis" />

@@ -20,3 +20,11 @@ export async function measureElement(locator: Locator): Promise<MeasuredBox> {
 export async function hasHorizontalOverflow(page: Page): Promise<boolean> {
   return page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
 }
+
+export function isWithinTolerance(actual: number, expected: number, tolerance: number): boolean {
+  return Math.abs(actual - expected) <= tolerance;
+}
+
+export function measureGap(firstBox: MeasuredBox, secondBox: MeasuredBox): number {
+  return secondBox.x - (firstBox.x + firstBox.width);
+}

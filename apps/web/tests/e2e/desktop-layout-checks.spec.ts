@@ -1,10 +1,13 @@
 import { expect, test } from "@playwright/test";
 
 import { desktopBaselineViewports } from "../fixtures/viewports";
-import { measureElement } from "../helpers/measure-layout";
+import { isWithinTolerance, measureElement } from "../helpers/measure-layout";
 import { waitForStablePage } from "../helpers/wait-for-stable-page";
 
 const desktopRoutes = ["/", "/login", "/applications", "/services", "/creditmodeler-service"] as const;
+const legacyDesktopTolerance = 4;
+const legacyStageToWorkbenchGap = 18;
+const legacyWorkbenchTopbarHeight = 135;
 
 test.describe("desktop route layout checkpoints", () => {
   for (const [viewportLabel, viewport] of Object.entries(desktopBaselineViewports)) {
@@ -27,9 +30,16 @@ test.describe("desktop route layout checkpoints", () => {
         }
 
         if (route === "/creditmodeler-service") {
+          const sidebarBox = await measureElement(page.getByTestId("app-sidebar"));
           const treeBox = await measureElement(page.getByTestId("workbench-tree"));
           const canvasBox = await measureElement(page.getByTestId("workbench-canvas"));
+          const stageCenterX = heroBox.x + heroBox.width / 2;
+          const stageToWorkbenchGap = treeBox.y - (heroBox.y + heroBox.height);
 
+          expect(isWithinTolerance(topbarBox.height, legacyWorkbenchTopbarHeight, legacyDesktopTolerance)).toBe(true);
+          expect(isWithinTolerance(stageCenterX, viewport.width / 2, legacyDesktopTolerance)).toBe(true);
+          expect(isWithinTolerance(stageToWorkbenchGap, legacyStageToWorkbenchGap, legacyDesktopTolerance)).toBe(true);
+          expect(isWithinTolerance(treeBox.y, sidebarBox.y + 1, legacyDesktopTolerance)).toBe(true);
           expect(treeBox.x).toBeLessThan(canvasBox.x);
           expect(canvasBox.width).toBeGreaterThan(treeBox.width);
         }

@@ -33,6 +33,12 @@ test.describe("accessibility coverage", () => {
     await page.goto("/creditmodeler-service");
     await waitForStablePage(page);
 
+    await expect(page.getByRole("navigation", { name: "Service objects" })).toBeVisible();
+    await expect(page.getByLabel("Search")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add object" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Grid view" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Branch view" })).toBeVisible();
+
     const analyticsToggle = page.getByRole("button", { name: "Analytics submenu" });
     await expect(analyticsToggle).toHaveAttribute("aria-expanded", "true");
 

@@ -1,8 +1,27 @@
 import { expect, test } from "@playwright/test";
 
-import { desktopBaselineViewports } from "../fixtures/viewports";
-import { hasHorizontalOverflow, measureElement } from "../helpers/measure-layout";
+import { creditModelerDesktopViewports, desktopBaselineViewports } from "../fixtures/viewports";
+import { hasHorizontalOverflow, isWithinTolerance, measureElement } from "../helpers/measure-layout";
 import { waitForStablePage } from "../helpers/wait-for-stable-page";
+
+const legacyDesktopTolerance = 4;
+
+const creditModelerGeometryTargets = {
+  desktopStandard: {
+    topbarHeight: 135,
+    sidebarY: 152,
+    treeY: 153,
+    canvasY: 153,
+    canvasWidth: 1052
+  },
+  desktopWide: {
+    topbarHeight: 135,
+    sidebarY: 152,
+    treeY: 153,
+    canvasY: 153,
+    canvasWidth: 1126
+  }
+} as const;
 
 type RouteGeometryCase = {
   path: "/" | "/login" | "/applications" | "/services" | "/creditmodeler-service";
@@ -106,8 +125,73 @@ test.describe("@visual desktop layout geometry", () => {
           await expect(page.getByTestId("app-sidebar")).toHaveCount(0);
         }
 
+        if (routeCase.path === "/creditmodeler-service") {
+          const viewportTargets = creditModelerGeometryTargets[viewportLabel as keyof typeof creditModelerGeometryTargets];
+          const sidebarBox = await measureElement(page.getByTestId("app-sidebar"));
+          const canvasBox = await measureElement(page.getByTestId("workbench-canvas"));
+
+          expect(isWithinTolerance(topbarBox.height, viewportTargets.topbarHeight, legacyDesktopTolerance)).toBe(true);
+          expect(isWithinTolerance(sidebarBox.y, viewportTargets.sidebarY, legacyDesktopTolerance)).toBe(true);
+          expect(isWithinTolerance(primaryBox.y, viewportTargets.treeY, legacyDesktopTolerance)).toBe(true);
+          expect(isWithinTolerance(canvasBox.y, viewportTargets.canvasY, legacyDesktopTolerance)).toBe(true);
+          expect(isWithinTolerance(canvasBox.width, viewportTargets.canvasWidth, legacyDesktopTolerance)).toBe(true);
+        }
+
         expect(await hasHorizontalOverflow(page)).toBe(false);
       });
     }
+  }
+
+  for (const [viewportLabel, viewport] of Object.entries(creditModelerDesktopViewports)) {
+    test(`/creditmodeler-service keeps the workbench frame aligned to the shell at ${viewportLabel}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await page.goto("/creditmodeler-service");
+      await waitForStablePage(page);
+
+      const topbarBox = await measureElement(page.getByTestId("app-topbar"));
+      const sidebarBox = await measureElement(page.getByTestId("app-sidebar"));
+      const treeBox = await measureElement(page.getByTestId("workbench-tree"));
+      const canvasBox = await measureElement(page.getByTestId("workbench-canvas"));
+
+      expect(isWithinTolerance(treeBox.y, sidebarBox.y + 1, legacyDesktopTolerance)).toBe(true);
+      expect(isWithinTolerance(canvasBox.y, sidebarBox.y + 1, legacyDesktopTolerance)).toBe(true);
+      expect(treeBox.y).toBeGreaterThanOrEqual(topbarBox.height);
+    });
+
+    test(`/creditmodeler-service keeps the tree readable without horizontal overflow at ${viewportLabel}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await page.goto("/creditmodeler-service");
+      await waitForStablePage(page);
+
+      await page.getByRole("button", { name: "Workflows submenu" }).click();
+
+      const treeBox = await measureElement(page.getByTestId("workbench-tree"));
+      const treeBody = page.getByTestId("workbench-tree-body");
+      const treeBodyBox = await measureElement(treeBody);
+      const metrics = await treeBody.evaluate((element) => {
+        const transitionLabel = [...element.querySelectorAll(".rv-tree-item__label")].find((node) => node.textContent?.trim() === "TransitionAnalysis") as HTMLElement | undefined;
+
+        if (!transitionLabel) {
+          throw new Error("TransitionAnalysis label not found.");
+        }
+
+        const computedStyle = window.getComputedStyle(element);
+
+        return {
+          bodyHasNoHorizontalOverflow: element.scrollWidth <= element.clientWidth,
+          bodyUsesVerticalScroll: computedStyle.overflowY === "auto" || computedStyle.overflowY === "scroll",
+          bodyHidesHorizontalOverflow: computedStyle.overflowX === "hidden",
+          transitionLabelFits: transitionLabel.scrollWidth <= transitionLabel.clientWidth
+        };
+      });
+
+      expect(treeBox.width).toBeGreaterThanOrEqual(220);
+      expect(treeBodyBox.y).toBeGreaterThan(treeBox.y);
+      expect(treeBodyBox.height).toBeLessThan(treeBox.height);
+      expect(metrics.transitionLabelFits).toBe(true);
+      expect(metrics.bodyHasNoHorizontalOverflow).toBe(true);
+      expect(metrics.bodyUsesVerticalScroll).toBe(true);
+      expect(metrics.bodyHidesHorizontalOverflow).toBe(true);
+    });
   }
 });

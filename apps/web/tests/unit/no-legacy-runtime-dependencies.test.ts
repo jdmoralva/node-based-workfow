@@ -3,7 +3,7 @@ import path from "node:path";
 
 const sourceRoots = ["app", "components", "features", "config"];
 const allowedExtensions = new Set([".ts", ".tsx"]);
-const forbiddenRuntimeReferences = ["frontend/", "__screenshots__/", "baselines/legacy/"];
+const forbiddenRuntimeReferences = ["frontend/", "frontend\\", "__screenshots__/", "baselines/legacy/", "baselines\\legacy\\"];
 
 function collectSourceFiles(rootDir: string): string[] {
   const entries = fs.readdirSync(rootDir, { withFileTypes: true });

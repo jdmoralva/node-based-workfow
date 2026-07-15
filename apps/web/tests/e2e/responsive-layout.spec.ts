@@ -41,6 +41,12 @@ test.describe("responsive layout coverage", () => {
           await expect(page.getByTestId("app-sidebar").getByRole("link", { name: "Applications" })).toBeVisible();
         }
 
+        if (routeCheck.path === "/creditmodeler-service") {
+          const stageBarBox = await measureElement(page.getByTestId("stage-bar"));
+          expect(stageBarBox.x).toBeGreaterThanOrEqual(0);
+          expect(stageBarBox.x + stageBarBox.width).toBeLessThanOrEqual(viewport.width + 1);
+        }
+
         const regionBox = await measureElement(page.getByTestId(routeCheck.primaryRegionTestId));
         expect(regionBox.x).toBeGreaterThanOrEqual(0);
         expect(regionBox.x + regionBox.width).toBeLessThanOrEqual(viewport.width + 1);

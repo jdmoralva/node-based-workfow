@@ -12,10 +12,12 @@ type ApplicationShellProps = {
 };
 
 export function ApplicationShell({ activeNav, breadcrumbs, children, pageKind = "landing", topbarSupplement }: ApplicationShellProps) {
+  const showsSidebar = pageKind !== "login";
+
   return (
-    <div className="rv-page-shell" data-page-kind={pageKind} data-testid="app-shell">
+    <div className="rv-page-shell" data-has-sidebar={showsSidebar ? "true" : "false"} data-page-kind={pageKind} data-testid="app-shell">
       <Topbar breadcrumbs={breadcrumbs} supplement={topbarSupplement} />
-      {pageKind === "login" ? null : <Sidebar activeNav={activeNav} />}
+      {showsSidebar ? <Sidebar activeNav={activeNav} /> : null}
       <main aria-label="Page content" className="rv-content" data-testid="app-content">
         {children}
       </main>
