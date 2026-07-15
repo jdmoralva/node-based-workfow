@@ -1,5 +1,0 @@
-{
-  "sidebarItems": [
-    { "key": "applications", "label": "Applications", "href": "applications.html", "icon": "icon-grid" }
-  ]
-}
