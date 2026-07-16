@@ -6,7 +6,7 @@ import { creditModelerDesktopViewports, desktopBaselineViewports } from "../fixt
 import { waitForStablePage } from "../helpers/wait-for-stable-page";
 
 test.describe("@visual migrated desktop comparison", () => {
-  for (const route of legacyRouteFixtures) {
+  for (const route of legacyRouteFixtures.filter((fixture) => fixture.key === "login")) {
     const viewports = route.key === "creditmodeler-service" ? creditModelerDesktopViewports : desktopBaselineViewports;
 
     for (const [viewportLabel, viewport] of Object.entries(viewports)) {

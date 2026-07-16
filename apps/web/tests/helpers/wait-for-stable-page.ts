@@ -28,4 +28,10 @@ export async function waitForStablePage(page: Page): Promise<void> {
         });
       })
   );
+
+  await page.waitForFunction(() => {
+    const loginForm = document.querySelector<HTMLElement>(".rv-login-form[data-auth-ready]");
+
+    return !loginForm || loginForm.dataset.authReady === "true";
+  });
 }

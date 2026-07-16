@@ -1,25 +1,46 @@
 import { test, expect } from "@playwright/test";
 
-const routeCases = [
-  { path: "/", heading: "APPLICATIONS" },
-  { path: "/login", heading: "SIGN IN" },
-  { path: "/applications", heading: "APPLICATIONS" },
-  { path: "/services", heading: "SERVICES" },
-  { path: "/creditmodeler-service", heading: null, text: "CreditModeler" }
-] as const;
+import { waitForStablePage } from "../helpers/wait-for-stable-page";
 
-test.describe("direct migrated route loading", () => {
-  for (const routeCase of routeCases) {
-    test(`loads ${routeCase.path} directly`, async ({ page }) => {
-      await page.goto(routeCase.path);
+test.describe("direct protected-route loading", () => {
+  test("redirects / to /login before protected content appears", async ({ page }) => {
+    await page.goto("/");
+    await waitForStablePage(page);
 
-      if (routeCase.heading) {
-        await expect(page.getByRole("heading", { name: routeCase.heading })).toBeVisible();
-      }
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByRole("heading", { name: "SIGN IN" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "APPLICATIONS" })).not.toBeVisible();
+  });
 
-      if ("text" in routeCase) {
-        await expect(page.getByText(routeCase.text)).toBeVisible();
-      }
+  for (const protectedPath of ["/applications", "/services", "/creditmodeler-service"] as const) {
+    test(`redirects unauthenticated direct entry for ${protectedPath} to /login with next`, async ({ page }) => {
+      await page.goto(protectedPath);
+      await waitForStablePage(page);
+
+      await expect(page).toHaveURL(new RegExp(`/login\\?next=${encodeURIComponent(protectedPath).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`));
+      await expect(page.getByRole("heading", { name: "SIGN IN" })).toBeVisible();
     });
   }
+
+  test("does not redirect static assets or required framework resources to /login", async ({ page }) => {
+    await page.goto("/login");
+    await waitForStablePage(page);
+
+    const nextAssetPath = await page.evaluate(() => {
+      return (
+        Array.from(document.querySelectorAll<HTMLScriptElement>('script[src]'))
+          .map((script) => script.getAttribute("src"))
+          .find((src) => src?.includes("/_next/static/")) ?? null
+      );
+    });
+
+    expect(nextAssetPath).not.toBeNull();
+
+    const assetResponse = await page.request.get(nextAssetPath!, { failOnStatusCode: false });
+    const faviconResponse = await page.request.get("/favicon.ico", { failOnStatusCode: false });
+
+    expect(assetResponse.url()).toContain("/_next/static/");
+    expect(assetResponse.status()).toBeLessThan(400);
+    expect(faviconResponse.url()).not.toContain("/login");
+  });
 });

@@ -6,7 +6,10 @@ import { expect, type Page } from "@playwright/test";
 import { getLegacyBaselineFileName, type LegacyRouteKey } from "../fixtures/legacy-routes";
 
 export function getLegacyBaselinePath(fileName: string): string {
-  return path.join(process.cwd(), "tests", "visual", "baselines", "legacy", fileName);
+  const cwd = process.cwd();
+  const appRoot = cwd.endsWith(path.join("apps", "web")) ? cwd : path.join(cwd, "apps", "web");
+
+  return path.join(appRoot, "tests", "visual", "baselines", "legacy", fileName);
 }
 
 export function assertLegacyBaselineExists(fileName: string): string {
