@@ -5,7 +5,7 @@ import { render, screen } from "@testing-library/react";
 import { Breadcrumbs } from "@/components/shell/Breadcrumbs";
 import { applicationCards, serviceCards } from "@/config/cards";
 import { breadcrumbMap } from "@/config/breadcrumbs";
-import { routePaths } from "@/config/routes";
+import { defaultAuthenticatedRedirectPath, protectedRoutePaths, publicRoutePaths, routeDefinitions, routePaths } from "@/config/routes";
 import { getRoutePath, isApplicationsSectionPath, resolveCardDestination } from "@/features/navigation/linking";
 
 describe("navigation metadata", () => {
@@ -27,6 +27,19 @@ describe("navigation metadata", () => {
     expect(isApplicationsSectionPath(routePaths.services)).toBe(true);
     expect(isApplicationsSectionPath(routePaths.creditModelerService)).toBe(true);
     expect(isApplicationsSectionPath(routePaths.login)).toBe(false);
+  });
+
+  it("marks public and protected routes explicitly for auth decisions", () => {
+    expect(routeDefinitions.home.access).toBe("public");
+    expect(routeDefinitions.login.access).toBe("public");
+    expect(routeDefinitions.services.access).toBe("protected");
+    expect(publicRoutePaths).toEqual([routePaths.home, routePaths.login]);
+    expect(protectedRoutePaths).toEqual([
+      routePaths.applications,
+      routePaths.services,
+      routePaths.creditModelerService
+    ]);
+    expect(defaultAuthenticatedRedirectPath).toBe(routePaths.applications);
   });
 
   it("renders the current breadcrumb segment as text instead of a link", () => {

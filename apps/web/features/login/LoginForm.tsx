@@ -1,13 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+
+import { login } from "@/lib/auth/auth-client";
+import { navigateTo } from "@/lib/auth/browser-navigation";
+import { resolvePostLoginRedirectTarget } from "@/lib/auth/redirect-target";
 
 export function LoginForm() {
+  const searchParams = useSearchParams();
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
+  const [resultMessage, setResultMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    setIsReady(true);
+  }, []);
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const formData = new FormData(event.currentTarget);
@@ -19,7 +31,30 @@ export function LoginForm() {
 
     setUsernameError(nextUsernameError);
     setPasswordError(nextPasswordError);
-    setSubmitted(!nextUsernameError && !nextPasswordError);
+
+    if (nextUsernameError || nextPasswordError) {
+      setResultMessage(null);
+      return;
+    }
+
+    setIsSubmitting(true);
+    setResultMessage(null);
+
+    const outcome = await login({ username, password });
+
+    setIsSubmitting(false);
+
+    if (outcome.kind === "authenticated") {
+      navigateTo(resolvePostLoginRedirectTarget(searchParams.get("next")));
+      return;
+    }
+
+    if (outcome.kind === "invalid_credentials" || outcome.kind === "backend_unavailable") {
+      setResultMessage(outcome.message ?? null);
+      return;
+    }
+
+    setResultMessage("Something went wrong. Please try again.");
   };
 
   return (
@@ -31,7 +66,7 @@ export function LoginForm() {
           <span aria-hidden="true" className="rv-hero__edge" />
         </div>
       </div>
-      <form className="rv-login-form" noValidate onSubmit={handleSubmit}>
+      <form className="rv-login-form" data-auth-ready={isReady ? "true" : "false"} noValidate onSubmit={handleSubmit}>
           <div className="grid gap-2">
             <label className="rv-login-form__label" htmlFor="username">
               Username
@@ -39,6 +74,7 @@ export function LoginForm() {
             <input
               aria-describedby={usernameError ? "username-error" : undefined}
               className={`rv-login-form__input ${usernameError ? "rv-login-form__input--invalid" : ""}`}
+              disabled={isSubmitting}
               id="username"
               name="username"
               type="text"
@@ -56,6 +92,7 @@ export function LoginForm() {
             <input
               aria-describedby={passwordError ? "password-error" : undefined}
               className={`rv-login-form__input ${passwordError ? "rv-login-form__input--invalid" : ""}`}
+              disabled={isSubmitting}
               id="password"
               name="password"
               type="password"
@@ -67,8 +104,12 @@ export function LoginForm() {
             ) : null}
           </div>
           <div className="flex items-center justify-end gap-3 pt-2">
-            {submitted ? <p className="rv-login-form__result mr-auto">Frontend-only placeholder.</p> : null}
-            <button className="rv-hero__action border-0" type="submit">
+            {resultMessage ? (
+              <p aria-live="polite" className="rv-login-form__result mr-auto">
+                {resultMessage}
+              </p>
+            ) : null}
+            <button className="rv-hero__action border-0" disabled={isSubmitting} type="submit">
               Sign In
             </button>
           </div>

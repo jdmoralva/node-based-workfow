@@ -1,9 +1,15 @@
 import { test, expect } from "@playwright/test";
 
+import { createAuthenticatedStorageState } from "../helpers/auth-session";
 import { waitForStablePage } from "../helpers/wait-for-stable-page";
 
 test.describe("accessibility coverage", () => {
-  test("exposes landmarks, current-page markers, and hidden decorative icons on applications", async ({ page }) => {
+  test("exposes landmarks, current-page markers, and hidden decorative icons on applications", async ({ page, request }) => {
+    test.skip(!process.env.E2E_AUTH_WITH_BACKEND, "Requires backend auth services and env wiring.");
+
+    const storageState = await createAuthenticatedStorageState(request);
+    await page.context().addCookies(storageState.cookies);
+
     await page.goto("/applications");
     await waitForStablePage(page);
 
@@ -16,7 +22,15 @@ test.describe("accessibility coverage", () => {
     expect(decorativeIconsHidden).toBeGreaterThan(0);
   });
 
-  test("exposes labelled fields and visible validation on login", async ({ page }) => {
+  test("exposes labelled fields, visible validation, and live auth feedback on login", async ({ page }) => {
+    await page.route("**/api/auth/login", async (route) => {
+      await route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "Invalid credentials" })
+      });
+    });
+
     await page.goto("/login");
     await waitForStablePage(page);
 
@@ -27,9 +41,21 @@ test.describe("accessibility coverage", () => {
 
     await expect(page.getByText("Username is required.")).toBeVisible();
     await expect(page.getByText("Password is required.")).toBeVisible();
+
+    await page.getByLabel("Username").fill("analyst");
+    await page.getByLabel("Password").fill("wrong-password");
+    await page.getByRole("button", { name: "Sign In" }).click();
+
+    await expect(page.getByText("Invalid username or password.")).toBeVisible();
+    await expect(page.locator(".rv-login-form__result")).toHaveAttribute("aria-live", "polite");
   });
 
-  test("exposes tree expand state and selection semantics on the workbench", async ({ page }) => {
+  test("exposes tree expand state and selection semantics on the workbench", async ({ page, request }) => {
+    test.skip(!process.env.E2E_AUTH_WITH_BACKEND, "Requires backend auth services and env wiring.");
+
+    const storageState = await createAuthenticatedStorageState(request);
+    await page.context().addCookies(storageState.cookies);
+
     await page.goto("/creditmodeler-service");
     await waitForStablePage(page);
 
