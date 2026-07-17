@@ -69,14 +69,14 @@
 
 ### Implementation for User Story 1
 
-- [ ] T031 [US1] Implement `GET /api/connections/databases` discovery endpoint behavior in `apps/api/app/modules/connections/api.py`
-- [ ] T032 [US1] Implement `GET /api/connections` current-user list endpoint behavior in `apps/api/app/modules/connections/api.py`
-- [ ] T033 [US1] Implement `POST /api/connections` create endpoint behavior in `apps/api/app/modules/connections/api.py`
-- [ ] T034 [US1] Implement `POST /api/connections/test` unsaved test endpoint behavior in `apps/api/app/modules/connections/api.py`
 - [ ] T035 [US1] Implement SQLite open/query validation with no table, column, schema, dataset, variable, or absolute-path output in `apps/api/app/modules/connections/service.py`
 - [ ] T036 [US1] Implement create-time label trimming, case-folded uniqueness, immutable label storage, and duplicate-label errors in `apps/api/app/modules/connections/service.py`
 - [ ] T037 [US1] Implement dataset discovery sorting, recursive extension filtering, extensionless labels, and relative value generation in `apps/api/app/modules/connections/service.py`
 - [ ] T038 [US1] Implement create/list repository persistence helpers in `apps/api/app/modules/connections/repository.py`
+- [ ] T031 [US1] Implement `GET /api/connections/databases` discovery endpoint behavior in `apps/api/app/modules/connections/api.py`
+- [ ] T032 [US1] Implement `GET /api/connections` current-user list endpoint behavior in `apps/api/app/modules/connections/api.py`
+- [ ] T033 [US1] Implement `POST /api/connections` create endpoint behavior in `apps/api/app/modules/connections/api.py`
+- [ ] T034 [US1] Implement `POST /api/connections/test` unsaved test endpoint behavior in `apps/api/app/modules/connections/api.py`
 - [ ] T039 [US1] Implement frontend database discovery, list, create, and unsaved test client calls in `apps/web/features/creditmodeler/connections-client.ts`
 - [ ] T040 [US1] Implement blank new-connection mode with editable label, fixed database type, selector, Test, and Save Connection controls in `apps/web/features/creditmodeler/ConnectionBuilder.tsx`
 - [ ] T041 [US1] Implement frontend loading, empty, validation, test success, test failure, save success, and save failure states in `apps/web/features/creditmodeler/ConnectionBuilder.tsx`
@@ -98,16 +98,16 @@
 ### Tests for User Story 2
 
 - [ ] T046 [P] [US2] Add backend contract tests for read connection, update connection, and saved connection test endpoints in `apps/api/tests/contract/test_connections_api.py`
-- [ ] T047 [P] [US2] Add backend integration tests for owner-only read/update/test, immutable label, database update, missing database failure, and `last_tested_at` success-only updates in `apps/api/tests/integration/test_connections_flow.py`
+- [ ] T047 [P] [US2] Add backend integration tests for owner-only read/update/test, immutable label, database update preserving previous `last_tested_at`, missing database failure, and `last_tested_at` success-only updates in `apps/api/tests/integration/test_connections_flow.py`
 - [ ] T048 [P] [US2] Add frontend unit tests for opening a saved connection, populated builder fields, read-only label, database update, saved test feedback, and refreshed selected state in `apps/web/tests/unit/connection-builder.test.tsx`
 
 ### Implementation for User Story 2
 
+- [ ] T052 [US2] Implement read, update, and saved-test repository helpers in `apps/api/app/modules/connections/repository.py`
+- [ ] T053 [US2] Implement saved-test timestamp update only after successful validation and preserve the previous timestamp on database-only updates in `apps/api/app/modules/connections/service.py`
 - [ ] T049 [US2] Implement `GET /api/connections/{id}` read endpoint behavior with ownership enforcement in `apps/api/app/modules/connections/api.py`
 - [ ] T050 [US2] Implement `PUT /api/connections/{id}` update endpoint behavior with immutable label and database-path validation in `apps/api/app/modules/connections/api.py`
 - [ ] T051 [US2] Implement `POST /api/connections/{id}/test` saved test endpoint behavior with ownership enforcement in `apps/api/app/modules/connections/api.py`
-- [ ] T052 [US2] Implement read, update, and saved-test repository helpers in `apps/api/app/modules/connections/repository.py`
-- [ ] T053 [US2] Implement saved-test timestamp update only after successful validation in `apps/api/app/modules/connections/service.py`
 - [ ] T054 [US2] Implement frontend read, update, and saved-test client calls in `apps/web/features/creditmodeler/connections-client.ts`
 - [ ] T055 [US2] Implement populated existing-connection mode with read-only label and selected database state in `apps/web/features/creditmodeler/ConnectionBuilder.tsx`
 - [ ] T056 [US2] Implement existing-connection save and saved-test UI flows in `apps/web/features/creditmodeler/ConnectionBuilder.tsx`
@@ -132,9 +132,9 @@
 
 ### Implementation for User Story 3
 
-- [ ] T062 [US3] Implement `DELETE /api/connections/{id}` endpoint behavior with ownership enforcement in `apps/api/app/modules/connections/api.py`
 - [ ] T063 [US3] Implement delete metadata repository helper in `apps/api/app/modules/connections/repository.py`
 - [ ] T064 [US3] Implement delete service behavior that never removes source database files in `apps/api/app/modules/connections/service.py`
+- [ ] T062 [US3] Implement `DELETE /api/connections/{id}` endpoint behavior with ownership enforcement in `apps/api/app/modules/connections/api.py`
 - [ ] T065 [US3] Implement frontend delete client call in `apps/web/features/creditmodeler/connections-client.ts`
 - [ ] T066 [US3] Implement Drop button, confirmation dialog, cancel behavior, success behavior, and failure feedback in `apps/web/features/creditmodeler/ConnectionBuilder.tsx`
 - [ ] T067 [US3] Refresh connection submenu and clear dropped selection after confirmed drop in `apps/web/features/creditmodeler/CreditModelerWorkbench.tsx`
@@ -147,7 +147,7 @@
 
 **Purpose**: Verification, visual stability, docs consistency, and final cleanup across stories.
 
-- [ ] T068 [P] Add or update e2e coverage for create, reopen, update, and drop flows in `apps/web/tests/e2e/local-interactions.spec.ts`
+- [ ] T068 [P] Add or update e2e coverage for create, reopen, update, and drop flows, including visible feedback within 2 seconds during local acceptance verification, in `apps/web/tests/e2e/local-interactions.spec.ts`
 - [ ] T069 [P] Add or update desktop geometry assertions for Connection Builder canvas rendering in `apps/web/tests/visual/layout-geometry.spec.ts`
 - [ ] T070 [P] Review quickstart validation steps against implemented behavior in `specs/007-connections-builder/quickstart.md`
 - [ ] T071 Run backend verification command documented in `specs/007-connections-builder/quickstart.md`
@@ -205,7 +205,7 @@ Task: "Add frontend tree regression tests for top-level Connections selection an
 
 ```text
 Task: "Add backend contract tests for read connection, update connection, and saved connection test endpoints in apps/api/tests/contract/test_connections_api.py"
-Task: "Add backend integration tests for owner-only read/update/test, immutable label, database update, missing database failure, and last_tested_at success-only updates in apps/api/tests/integration/test_connections_flow.py"
+Task: "Add backend integration tests for owner-only read/update/test, immutable label, database update preserving previous last_tested_at, missing database failure, and last_tested_at success-only updates in apps/api/tests/integration/test_connections_flow.py"
 Task: "Add frontend unit tests for opening a saved connection, populated builder fields, read-only label, database update, saved test feedback, and refreshed selected state in apps/web/tests/unit/connection-builder.test.tsx"
 ```
 

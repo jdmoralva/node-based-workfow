@@ -6,8 +6,10 @@
 - `README.md` is only a summary; trust `docs/SPEC.md` when product docs disagree with repo state.
 
 ## Repo Shape
-- `apps/web` and `apps/api` from `docs/SPEC.md` still do not exist.
-- The runnable code today is split between `frontend/` and `agents/`.
+- `apps/api` is the FastAPI backend app with SQLAlchemy/Alembic, auth/health modules, and pytest contract/integration tests.
+- `apps/web` is the migrated Next.js frontend app with the CreditModeler workbench surface, component/config structure, Vitest, lint, and Playwright visual tests.
+- The legacy generated shell still lives under `frontend/`; keep using it only for shell-generator work unless the active spec targets `apps/web`.
+- Prototype code still lives under `agents/`.
 - There is still no root manifest, lockfile, or CI workflow; verification is per-area.
 
 ## Frontend Shell
@@ -32,6 +34,8 @@
 
 ## Verification
 - There is no single repo-wide verification command.
+- For `apps/api` changes, run focused pytest commands from `apps/api`.
+- For `apps/web` changes, run focused `npm` verification commands from `apps/web`.
 - For `frontend/` changes, run `python -m unittest frontend.scripts.tests.test_build_dashboard_shell` and `python frontend/scripts/build_dashboard_shell.py`.
 - For `agents/` changes, prefer the narrowest prototype script for the area touched rather than broad exploratory runs.
 - For `docs/` changes, verify consistency against `docs/SPEC.md`, `docs/PRD.md`, and the executable sources you touched.

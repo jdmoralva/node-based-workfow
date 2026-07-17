@@ -8,7 +8,7 @@
 
 Build the CreditModeler workbench `Connections` capability as an authenticated full-stack feature. The backend will persist per-user SQLite connection metadata, safely discover selectable SQLite files under `data/datasets/`, expose CRUD and test operations, and enforce path/ownership/label constraints. The frontend will replace static example connection tree entries with saved user connections and render a canvas-panel Connection Builder for creating, testing, updating, reopening, and dropping saved connection metadata.
 
-Implementation follows the user-provided multi-phase plan:
+Implementation follows the user-provided multi-phase plan, with story-specific tests written and observed failing before each story's implementation tasks:
 
 1. Backend data model and migration.
 2. Backend database discovery and validation.
@@ -17,8 +17,8 @@ Implementation follows the user-provided multi-phase plan:
 5. Workbench state refactor.
 6. Dynamic Connections menu.
 7. Connection Builder UI.
-8. Backend tests.
-9. Frontend tests.
+8. Backend test coverage completion.
+9. Frontend test coverage completion.
 10. Verification.
 
 ## Technical Context
@@ -35,7 +35,7 @@ Implementation follows the user-provided multi-phase plan:
 
 **Project Type**: Web application with separate backend API and frontend app under `apps/api` and `apps/web`
 
-**Performance Goals**: Discovery, list, save, update, drop, and test feedback visible to users within 2 seconds under normal operating conditions; no table/schema scans during connection tests
+**Performance Goals**: Discovery, list, save, update, drop, and test feedback visible to users within 2 seconds during local acceptance verification with the backend and frontend running on the same development machine and using local SQLite dataset files; no table/schema scans during connection tests
 
 **Constraints**: Users must not type paths; absolute paths must never be exposed; path traversal and unknown dataset references must be rejected; `Drop` must remove metadata only; connection tests must not reveal tables, columns, schema, dataset contents, or variables
 
@@ -155,7 +155,7 @@ Add authenticated connection operations.
 - Add schemas, repository, service, and router under `apps/api/app/modules/connections/`.
 - Register the router in `apps/api/app/api/router.py`.
 - Implement discovery, list, create, read, update, delete, unsaved test, and saved test.
-- Ensure saved test updates `last_tested_at` only after successful validation.
+- Ensure saved test updates `last_tested_at` only after successful validation; database updates without a successful saved test preserve the previous timestamp.
 - Ensure test responses reveal no table, column, schema, dataset, or variable metadata.
 
 ### Phase 4: Frontend API Client
@@ -192,9 +192,9 @@ Implement create, test, save, update, and drop flows in the canvas panel.
 - Show loading, empty, validation, success, and failure states.
 - Confirm before dropping; remove metadata only.
 
-### Phase 8: Backend Tests
+### Phase 8: Backend Test Coverage Check
 
-Add contract and integration coverage.
+Confirm backend contract and integration coverage. Story-specific backend tests are still written and observed failing before the corresponding story implementation tasks.
 
 - Discovery recursion, extension filtering, relative values, and extensionless labels.
 - Authentication and ownership enforcement.
@@ -203,15 +203,15 @@ Add contract and integration coverage.
 - Create, read, update, delete, unsaved test, saved test, and `last_tested_at` behavior.
 - No table/column/schema metadata in test responses.
 
-### Phase 9: Frontend Tests
+### Phase 9: Frontend Test Coverage Check
 
-Add unit and interaction coverage.
+Confirm frontend unit and interaction coverage. Story-specific frontend tests are still written and observed failing before the corresponding story implementation tasks.
 
 - Blank builder from top-level `Connections`.
 - Database option loading and empty state.
 - Save creates submenu item.
 - Saved item opens populated builder with read-only label.
-- Update selected database only.
+- Update selected database only and preserve any existing successful-test timestamp until the next successful saved test.
 - Test success/failure feedback.
 - Drop confirmation and submenu refresh.
 - Existing workbench tree behavior remains valid.

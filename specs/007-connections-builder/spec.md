@@ -45,7 +45,7 @@ A signed-in credit risk manager selects a saved connection from the workbench tr
 **Acceptance Scenarios**:
 
 1. **Given** a signed-in credit risk manager has a saved connection, **When** the user selects that connection under `Connections`, **Then** the canvas shows the saved connection details with the label visible and non-editable.
-2. **Given** a saved connection is open, **When** the user selects a different available database and saves, **Then** the saved connection is updated in place and still appears under the same label.
+2. **Given** a saved connection is open, **When** the user selects a different available database and saves, **Then** the saved connection is updated in place, still appears under the same label, and preserves the previous latest successful test time until the user runs another successful saved-connection test.
 3. **Given** a saved connection is open, **When** the user tests it successfully, **Then** the user sees success feedback and the connection records the latest successful test time.
 
 ---
@@ -95,11 +95,11 @@ A signed-in credit risk manager removes a saved connection from their workbench 
 - **FR-010**: The system MUST require saved connection labels to be unique within a user's own account after trimming surrounding whitespace and ignoring capitalization.
 - **FR-011**: The system MUST allow different users to use the same connection label independently.
 - **FR-012**: The system MUST keep a saved connection label immutable after creation.
-- **FR-013**: The system MUST allow users to update the selected database for an existing saved connection without changing the connection label.
+- **FR-013**: The system MUST allow users to update the selected database for an existing saved connection without changing the connection label or clearing the previous latest successful test time.
 - **FR-014**: The system MUST provide a test action for a selected database before saving a new connection.
 - **FR-015**: The system MUST provide a test action for an existing saved connection.
 - **FR-016**: The system MUST clearly show test success or failure feedback to the user.
-- **FR-017**: The system MUST record the latest successful test time only when an existing saved connection test succeeds.
+- **FR-017**: The system MUST record the latest successful test time only when an existing saved connection test succeeds; updating the selected database without a successful saved-connection test MUST leave the previous latest successful test time unchanged.
 - **FR-018**: The system MUST NOT expose table names, column names, schema details, dataset contents, or variables as part of this feature.
 - **FR-019**: The system MUST allow users to drop saved connection metadata only after explicit confirmation.
 - **FR-020**: The system MUST NOT delete source database files when a user drops a saved connection.
@@ -121,7 +121,7 @@ A signed-in credit risk manager removes a saved connection from their workbench 
 - **SC-001**: 95% of users can create, test, and save a new connection from an available database in under 2 minutes during usability testing.
 - **SC-002**: 100% of saved connections are visible only to the user who created them during access-control testing.
 - **SC-003**: 100% of drop actions require confirmation and remove only the saved connection entry, not the source database file, during acceptance testing.
-- **SC-004**: 95% of successful save, update, test, and drop actions show visible user feedback within 2 seconds under normal operating conditions.
+- **SC-004**: 95% of successful save, update, test, and drop actions show visible user feedback within 2 seconds during local acceptance verification with the backend and frontend running on the same development machine and using local SQLite dataset files.
 - **SC-005**: 100% of invalid database selections, unsupported file types, duplicate labels, missing labels, missing database selections, and failed tests produce clear user-facing error messages during validation testing.
 - **SC-006**: 0 table names, column names, schema details, dataset contents, or variables are exposed by this feature during feature-scope testing.
 
