@@ -12,7 +12,7 @@ DATASET_FILES = {
 }
 
 
-def build_portfolio_db(source_dir: Path, output_path: Path) -> Path:
+def build_demo_db(source_dir: Path, output_path: Path) -> Path:
     source_dir = Path(source_dir)
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -31,9 +31,9 @@ def build_portfolio_db(source_dir: Path, output_path: Path) -> Path:
 
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[2]
-    source_dir = repo_root / "data" / "portfolio"
-    output_path = repo_root / "data" / "datasets" / "portfolio.db"
-    build_portfolio_db(source_dir, output_path)
+    source_dir = repo_root / "data" / "demo"
+    output_path = repo_root / "data" / "datasets" / "demo.db"
+    build_demo_db(source_dir, output_path)
 
 
 if __name__ == "__main__":

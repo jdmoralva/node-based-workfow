@@ -4,14 +4,14 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from build_portfolio_db import build_portfolio_db
+from build_demo_db import build_demo_db
 
 
-def test_build_portfolio_db_creates_loans_and_behavior_tables(tmp_path):
+def test_build_demo_db_creates_loans_and_behavior_tables(tmp_path):
     source_dir = Path(__file__).resolve().parent
-    output_path = tmp_path / "portfolio.db"
+    output_path = tmp_path / "demo.db"
 
-    result = build_portfolio_db(source_dir, output_path)
+    result = build_demo_db(source_dir, output_path)
 
     assert result == output_path
 
