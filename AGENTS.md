@@ -42,5 +42,5 @@ Configuration files exists in `C:\Users\User\Documents\1. Projects\24. Risk View
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/006-frontend-auth-integration/plan.md
+at specs/007-connections-builder/plan.md
 <!-- SPECKIT END -->
