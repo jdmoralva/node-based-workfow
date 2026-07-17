@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { vi } from "vitest";
 
 import { ObjectTree } from "@/components/workbench/ObjectTree";
 import { creditModelerTreeMenu, type TreeMenuDefinition } from "@/config/tree-menu";
@@ -54,5 +55,30 @@ describe("ObjectTree", () => {
       "title",
       "FutureWorkflowThatNeedsMoreHorizontalSpaceThanTheApprovedDesktopPanelAllows"
     );
+  });
+
+  it("reports top-level Connections selection without toggling its expanded state", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+
+    render(<ObjectTree menu={creditModelerTreeMenu} onSelect={onSelect} selectedKey="Connections" />);
+
+    await user.click(screen.getByRole("button", { name: "Connections" }));
+
+    expect(onSelect).toHaveBeenCalledWith("Connections");
+    expect(screen.getByRole("button", { name: "Connections" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Connections submenu" })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("preserves expand and collapse behavior for Connections", async () => {
+    const user = userEvent.setup();
+
+    render(<ObjectTree menu={creditModelerTreeMenu} />);
+
+    await user.click(screen.getByRole("button", { name: "Connections submenu" }));
+    expect(screen.getByRole("button", { name: "Connections submenu" })).toHaveAttribute("aria-expanded", "true");
+
+    await user.click(screen.getByRole("button", { name: "Connections submenu" }));
+    expect(screen.getByRole("button", { name: "Connections submenu" })).toHaveAttribute("aria-expanded", "false");
   });
 });

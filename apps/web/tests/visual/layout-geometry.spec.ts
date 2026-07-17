@@ -1,10 +1,12 @@
 import { expect, test } from "@playwright/test";
 
 import { creditModelerDesktopViewports, desktopBaselineViewports } from "../fixtures/viewports";
+import { createAuthenticatedStorageState } from "../helpers/auth-session";
 import { hasHorizontalOverflow, isWithinTolerance, measureElement } from "../helpers/measure-layout";
 import { waitForStablePage } from "../helpers/wait-for-stable-page";
 
 const legacyDesktopTolerance = 4;
+const protectedGeometryRoutes = new Set<string>(["/", "/applications", "/services", "/creditmodeler-service"]);
 
 const creditModelerGeometryTargets = {
   desktopStandard: {
@@ -92,7 +94,14 @@ const routeGeometryCases: readonly RouteGeometryCase[] = [
 test.describe("@visual desktop layout geometry", () => {
   for (const routeCase of routeGeometryCases) {
     for (const [viewportLabel, viewport] of Object.entries(desktopBaselineViewports)) {
-      test(`${routeCase.path} preserves desktop geometry at ${viewportLabel}`, async ({ page }) => {
+      test(`${routeCase.path} preserves desktop geometry at ${viewportLabel}`, async ({ page, request }) => {
+        test.skip(protectedGeometryRoutes.has(routeCase.path) && !process.env.E2E_AUTH_WITH_BACKEND, "Requires backend auth services and env wiring.");
+
+        if (protectedGeometryRoutes.has(routeCase.path)) {
+          const storageState = await createAuthenticatedStorageState(request);
+          await page.context().addCookies(storageState.cookies);
+        }
+
         await page.setViewportSize(viewport);
         await page.goto(routeCase.path);
         await waitForStablePage(page);
@@ -143,7 +152,12 @@ test.describe("@visual desktop layout geometry", () => {
   }
 
   for (const [viewportLabel, viewport] of Object.entries(creditModelerDesktopViewports)) {
-    test(`/creditmodeler-service keeps the workbench frame aligned to the shell at ${viewportLabel}`, async ({ page }) => {
+    test(`/creditmodeler-service keeps the workbench frame aligned to the shell at ${viewportLabel}`, async ({ page, request }) => {
+      test.skip(!process.env.E2E_AUTH_WITH_BACKEND, "Requires backend auth services and env wiring.");
+
+      const storageState = await createAuthenticatedStorageState(request);
+      await page.context().addCookies(storageState.cookies);
+
       await page.setViewportSize(viewport);
       await page.goto("/creditmodeler-service");
       await waitForStablePage(page);
@@ -158,7 +172,12 @@ test.describe("@visual desktop layout geometry", () => {
       expect(treeBox.y).toBeGreaterThanOrEqual(topbarBox.height);
     });
 
-    test(`/creditmodeler-service keeps the tree readable without horizontal overflow at ${viewportLabel}`, async ({ page }) => {
+    test(`/creditmodeler-service keeps the tree readable without horizontal overflow at ${viewportLabel}`, async ({ page, request }) => {
+      test.skip(!process.env.E2E_AUTH_WITH_BACKEND, "Requires backend auth services and env wiring.");
+
+      const storageState = await createAuthenticatedStorageState(request);
+      await page.context().addCookies(storageState.cookies);
+
       await page.setViewportSize(viewport);
       await page.goto("/creditmodeler-service");
       await waitForStablePage(page);
@@ -194,4 +213,40 @@ test.describe("@visual desktop layout geometry", () => {
       expect(metrics.bodyHidesHorizontalOverflow).toBe(true);
     });
   }
+
+  test(`/creditmodeler-service renders Connection Builder inside the existing canvas frame`, async ({ page, request }) => {
+    test.skip(!process.env.E2E_AUTH_WITH_BACKEND, "Requires backend auth services and env wiring.");
+
+    const storageState = await createAuthenticatedStorageState(request);
+    await page.context().addCookies(storageState.cookies);
+    await page.route("**/api/connections", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ connections: [] }) });
+    });
+    await page.route("**/api/connections/databases", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ databases: [{ value: "portfolio.db", label: "portfolio" }] })
+      });
+    });
+
+    await page.setViewportSize(creditModelerDesktopViewports.desktopStandard);
+    await page.goto("/creditmodeler-service");
+    await waitForStablePage(page);
+
+    const canvasBefore = await measureElement(page.getByTestId("workbench-canvas"));
+    await page.getByRole("button", { name: "Connections" }).click();
+    await expect(page.getByTestId("connection-builder")).toBeVisible();
+
+    const canvasAfter = await measureElement(page.getByTestId("workbench-canvas"));
+    const builderBox = await measureElement(page.getByTestId("connection-builder"));
+
+    expect(isWithinTolerance(canvasAfter.x, canvasBefore.x, legacyDesktopTolerance)).toBe(true);
+    expect(isWithinTolerance(canvasAfter.y, canvasBefore.y, legacyDesktopTolerance)).toBe(true);
+    expect(isWithinTolerance(canvasAfter.width, canvasBefore.width, legacyDesktopTolerance)).toBe(true);
+    expect(builderBox.x).toBeGreaterThanOrEqual(canvasAfter.x);
+    expect(builderBox.y).toBeGreaterThanOrEqual(canvasAfter.y);
+    expect(builderBox.x + builderBox.width).toBeLessThanOrEqual(canvasAfter.x + canvasAfter.width);
+    expect(builderBox.y + builderBox.height).toBeLessThanOrEqual(canvasAfter.y + canvasAfter.height);
+  });
 });

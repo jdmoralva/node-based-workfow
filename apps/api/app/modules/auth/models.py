@@ -4,9 +4,14 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String
+from typing import TYPE_CHECKING
+
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.modules.connections.models import DatabaseConnection
 
 
 def _new_id(prefix: str) -> str:
@@ -32,6 +37,7 @@ class InternalUser(Base):
     )
 
     sessions: Mapped[list[AuthenticatedSession]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    connections: Mapped[list[DatabaseConnection]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
 class AuthenticatedSession(Base):

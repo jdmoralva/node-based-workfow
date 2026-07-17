@@ -82,10 +82,7 @@ export const creditModelerTreeMenu: TreeMenuDefinition = {
         controls: "connections-submenu",
         label: "Connections submenu"
       },
-      children: [
-        { label: "Server1", icon: "icon-branch" },
-        { label: "Server2", icon: "icon-branch" }
-      ]
+      children: []
     },
     {
       label: "Data Models",

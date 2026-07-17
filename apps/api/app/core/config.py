@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     app_name: str = "Risk Viewer API"
     app_env: str = "development"
     database_url: str = "sqlite:///./data/app/app.db"
+    datasets_root: str = "data/datasets"
     auto_create_tables: bool = True
     session_cookie_name: str = "rv_session"
     session_cookie_secure: bool | None = None
@@ -29,6 +30,13 @@ class Settings(BaseSettings):
             relative_path = self.database_url.removeprefix("sqlite:///./")
             return f"sqlite:///{(self.repository_root / relative_path).resolve()}"
         return self.database_url
+
+    @property
+    def resolved_datasets_root(self) -> Path:
+        path = Path(self.datasets_root)
+        if not path.is_absolute():
+            path = self.repository_root / path
+        return path.resolve()
 
     @property
     def resolved_session_cookie_secure(self) -> bool:

@@ -18,7 +18,8 @@ type ObjectTreeItemProps = {
 export function ObjectTreeItem({ expandedState, item, onSelect, onToggle, depth = 0, path = [], selectedKey }: ObjectTreeItemProps) {
   const nodePath = [...path, item.label];
   const nodeKey = nodePath.join("/");
-  const hasChildren = Boolean(item.children?.length);
+  const hasChildren = item.kind === "submenu";
+  const childItems = item.children ?? [];
   const isExpanded = item.toggle ? expandedState.get(nodeKey) ?? item.toggle.expanded : true;
   const isSelected = selectedKey === nodeKey;
   const depthOffset = `${depth * 12}px`;
@@ -57,9 +58,9 @@ export function ObjectTreeItem({ expandedState, item, onSelect, onToggle, depth 
           ) : null}
         </button>
       </div>
-      {hasChildren && isExpanded ? (
+      {hasChildren && isExpanded && childItems.length > 0 ? (
         <ul className="rv-tree-children" id={item.toggle?.controls}>
-          {item.children?.map((child) => (
+          {childItems.map((child) => (
             <ObjectTreeItem
               depth={depth + 1}
               expandedState={expandedState}

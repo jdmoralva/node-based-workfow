@@ -7,10 +7,14 @@ import { useWorkbenchTree } from "@/features/creditmodeler/useWorkbenchTree";
 
 type ObjectTreeProps = {
   menu: TreeMenuDefinition;
+  onSelect?: (key: string) => void;
+  selectedKey?: string | null;
 };
 
-export function ObjectTree({ menu }: ObjectTreeProps) {
-  const { expandedState, selectedKey, selectNode, toggleNode } = useWorkbenchTree(menu);
+export function ObjectTree({ menu, onSelect, selectedKey: controlledSelectedKey }: ObjectTreeProps) {
+  const { expandedState, selectedKey: internalSelectedKey, selectNode, toggleNode } = useWorkbenchTree(menu);
+  const selectedKey = controlledSelectedKey ?? internalSelectedKey;
+  const handleSelect = onSelect ?? selectNode;
 
   return (
     <nav aria-label={menu.ariaLabel} className="rv-tree-panel" data-testid="workbench-tree">
@@ -36,7 +40,7 @@ export function ObjectTree({ menu }: ObjectTreeProps) {
               expandedState={expandedState}
               item={item}
               key={item.label}
-              onSelect={selectNode}
+              onSelect={handleSelect}
               onToggle={toggleNode}
               selectedKey={selectedKey}
             />

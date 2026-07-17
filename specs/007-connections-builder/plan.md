@@ -231,3 +231,5 @@ npm run test:visual:desktop
 ```
 
 Run visual verification when workbench layout or CSS changes affect geometry.
+
+Protected-route Playwright visual and local interaction checks are backend-auth gated with `E2E_AUTH_WITH_BACKEND`, matching the existing protected route test convention. Local runs without backend auth still execute public/login checks and skip protected workbench assertions rather than failing on unavailable auth services.

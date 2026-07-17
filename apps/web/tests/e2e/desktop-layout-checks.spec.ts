@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { desktopBaselineViewports } from "../fixtures/viewports";
+import { createAuthenticatedStorageState } from "../helpers/auth-session";
 import { isWithinTolerance, measureElement } from "../helpers/measure-layout";
 import { waitForStablePage } from "../helpers/wait-for-stable-page";
 
@@ -8,11 +9,19 @@ const desktopRoutes = ["/", "/login", "/applications", "/services", "/creditmode
 const legacyDesktopTolerance = 4;
 const legacyStageToWorkbenchGap = 18;
 const legacyWorkbenchTopbarHeight = 135;
+const protectedDesktopRoutes = new Set<string>(["/", "/applications", "/services", "/creditmodeler-service"]);
 
 test.describe("desktop route layout checkpoints", () => {
   for (const [viewportLabel, viewport] of Object.entries(desktopBaselineViewports)) {
     for (const route of desktopRoutes) {
-      test(`${route} keeps critical desktop regions aligned at ${viewportLabel}`, async ({ page }) => {
+      test(`${route} keeps critical desktop regions aligned at ${viewportLabel}`, async ({ page, request }) => {
+        test.skip(protectedDesktopRoutes.has(route) && !process.env.E2E_AUTH_WITH_BACKEND, "Requires backend auth services and env wiring.");
+
+        if (protectedDesktopRoutes.has(route)) {
+          const storageState = await createAuthenticatedStorageState(request);
+          await page.context().addCookies(storageState.cookies);
+        }
+
         await page.setViewportSize(viewport);
         await page.goto(route);
         await waitForStablePage(page);

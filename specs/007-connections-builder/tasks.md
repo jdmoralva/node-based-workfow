@@ -14,14 +14,14 @@
 
 **Purpose**: Create empty feature files and test scaffolds before shared foundation work.
 
-- [ ] T001 Create backend connections package marker in `apps/api/app/modules/connections/__init__.py`
-- [ ] T002 [P] Create frontend connection type definitions scaffold in `apps/web/features/creditmodeler/connection-types.ts`
-- [ ] T003 [P] Create frontend connection client scaffold in `apps/web/features/creditmodeler/connections-client.ts`
-- [ ] T004 [P] Create frontend Connection Builder component scaffold in `apps/web/features/creditmodeler/ConnectionBuilder.tsx`
-- [ ] T005 [P] Create frontend CreditModeler workbench container scaffold in `apps/web/features/creditmodeler/CreditModelerWorkbench.tsx`
-- [ ] T006 [P] Create backend connection contract test file scaffold in `apps/api/tests/contract/test_connections_api.py`
-- [ ] T007 [P] Create backend connection integration test file scaffold in `apps/api/tests/integration/test_connections_flow.py`
-- [ ] T008 [P] Create frontend connection builder unit test file scaffold in `apps/web/tests/unit/connection-builder.test.tsx`
+- [X] T001 Create backend connections package marker in `apps/api/app/modules/connections/__init__.py`
+- [X] T002 [P] Create frontend connection type definitions scaffold in `apps/web/features/creditmodeler/connection-types.ts`
+- [X] T003 [P] Create frontend connection client scaffold in `apps/web/features/creditmodeler/connections-client.ts`
+- [X] T004 [P] Create frontend Connection Builder component scaffold in `apps/web/features/creditmodeler/ConnectionBuilder.tsx`
+- [X] T005 [P] Create frontend CreditModeler workbench container scaffold in `apps/web/features/creditmodeler/CreditModelerWorkbench.tsx`
+- [X] T006 [P] Create backend connection contract test file scaffold in `apps/api/tests/contract/test_connections_api.py`
+- [X] T007 [P] Create backend connection integration test file scaffold in `apps/api/tests/integration/test_connections_flow.py`
+- [X] T008 [P] Create frontend connection builder unit test file scaffold in `apps/web/tests/unit/connection-builder.test.tsx`
 
 ---
 
@@ -31,24 +31,24 @@
 
 **Critical**: No user story implementation should begin until this phase is complete.
 
-- [ ] T009 Add `datasets_root` settings support with repo-root `data/datasets` default in `apps/api/app/core/config.py`
-- [ ] T010 Create `DatabaseConnection` model with owner, label, normalized label, driver, database path, timestamps, and uniqueness in `apps/api/app/modules/connections/models.py`
-- [ ] T011 Register `DatabaseConnection` metadata import with SQLAlchemy base metadata in `apps/api/app/db/base.py`
-- [ ] T012 Add user-to-connections relationship for ownership queries in `apps/api/app/modules/auth/models.py`
-- [ ] T013 Create Alembic migration for `database_connections` table and `(user_id, normalized_label)` uniqueness in `apps/api/alembic/versions/002_database_connections.py`
-- [ ] T014 [P] Create connection Pydantic schemas for database options, saved connections, create/update payloads, and test responses in `apps/api/app/modules/connections/schemas.py`
-- [ ] T015 [P] Create connection repository module scaffolding and function signatures for current-user CRUD queries in `apps/api/app/modules/connections/repository.py`
-- [ ] T016 Create connection service module scaffolding and helper signatures for label normalization, dataset discovery, path validation, and SQLite testing in `apps/api/app/modules/connections/service.py`
-- [ ] T017 Create connection API router skeleton with authenticated dependencies in `apps/api/app/modules/connections/api.py`
-- [ ] T018 Register the connections router under the main API router in `apps/api/app/api/router.py`
-- [ ] T019 Create frontend connection domain types matching the contract in `apps/web/features/creditmodeler/connection-types.ts`
-- [ ] T020 Create frontend API client function signatures for database discovery, connection CRUD, unsaved test, and saved test in `apps/web/features/creditmodeler/connections-client.ts`
-- [ ] T021 Refactor workbench tree selection hook to expose selected item state and selection callbacks in `apps/web/features/creditmodeler/useWorkbenchTree.ts`
-- [ ] T022 Update workbench tree props to accept external selection state and selection callbacks in `apps/web/components/workbench/ObjectTree.tsx`
-- [ ] T023 Update workbench tree item props to report selections upward without breaking expand/collapse in `apps/web/components/workbench/ObjectTreeItem.tsx`
-- [ ] T024 Update workbench shell props so the canvas can receive selected connection context in `apps/web/components/workbench/Workbench.tsx`
-- [ ] T025 Create CreditModeler workbench container that owns tree selection and connection list state in `apps/web/features/creditmodeler/CreditModelerWorkbench.tsx`
-- [ ] T026 Replace direct Workbench rendering with CreditModeler workbench container in `apps/web/app/(protected)/creditmodeler-service/page.tsx`
+- [X] T009 Add `datasets_root` settings support with repo-root `data/datasets` default in `apps/api/app/core/config.py`
+- [X] T010 Create `DatabaseConnection` model with owner, label, normalized label, driver, database path, timestamps, and uniqueness in `apps/api/app/modules/connections/models.py`
+- [X] T011 Register `DatabaseConnection` metadata import with SQLAlchemy base metadata in `apps/api/app/db/base.py`
+- [X] T012 Add user-to-connections relationship for ownership queries in `apps/api/app/modules/auth/models.py`
+- [X] T013 Create Alembic migration for `database_connections` table and `(user_id, normalized_label)` uniqueness in `apps/api/alembic/versions/002_database_connections.py`
+- [X] T014 [P] Create connection Pydantic schemas for database options, saved connections, create/update payloads, and test responses in `apps/api/app/modules/connections/schemas.py`
+- [X] T015 [P] Create connection repository module scaffolding and function signatures for current-user CRUD queries in `apps/api/app/modules/connections/repository.py`
+- [X] T016 Create connection service module scaffolding and helper signatures for label normalization, dataset discovery, path validation, and SQLite testing in `apps/api/app/modules/connections/service.py`
+- [X] T017 Create connection API router skeleton with authenticated dependencies in `apps/api/app/modules/connections/api.py`
+- [X] T018 Register the connections router under the main API router in `apps/api/app/api/router.py`
+- [X] T019 Create frontend connection domain types matching the contract in `apps/web/features/creditmodeler/connection-types.ts`
+- [X] T020 Create frontend API client function signatures for database discovery, connection CRUD, unsaved test, and saved test in `apps/web/features/creditmodeler/connections-client.ts`
+- [X] T021 Refactor workbench tree selection hook to expose selected item state and selection callbacks in `apps/web/features/creditmodeler/useWorkbenchTree.ts`
+- [X] T022 Update workbench tree props to accept external selection state and selection callbacks in `apps/web/components/workbench/ObjectTree.tsx`
+- [X] T023 Update workbench tree item props to report selections upward without breaking expand/collapse in `apps/web/components/workbench/ObjectTreeItem.tsx`
+- [X] T024 Update workbench shell props so the canvas can receive selected connection context in `apps/web/components/workbench/Workbench.tsx`
+- [X] T025 Create CreditModeler workbench container that owns tree selection and connection list state in `apps/web/features/creditmodeler/CreditModelerWorkbench.tsx`
+- [X] T026 Replace direct Workbench rendering with CreditModeler workbench container in `apps/web/app/(protected)/creditmodeler-service/page.tsx`
 
 **Checkpoint**: Backend connections module exists, safe discovery helpers exist, API/client scaffolds exist, and tree selection can drive canvas content.
 
@@ -62,28 +62,28 @@
 
 ### Tests for User Story 1
 
-- [ ] T027 [P] [US1] Add backend contract tests for database discovery, list connections, create connection, and unsaved test in `apps/api/tests/contract/test_connections_api.py`
-- [ ] T028 [P] [US1] Add backend integration tests for recursive discovery, allowed extensions, extensionless labels, relative values, blank labels, duplicate labels for one user, same-label allowance across two users, invalid paths, valid unsaved test, and metadata-only create in `apps/api/tests/integration/test_connections_flow.py`
-- [ ] T029 [P] [US1] Add frontend unit tests for blank builder rendering, database option loading, empty discovery state, validation messages, test feedback, save success, and submenu refresh in `apps/web/tests/unit/connection-builder.test.tsx`
-- [ ] T030 [P] [US1] Add frontend tree regression tests for top-level `Connections` selection and preserved expand/collapse behavior in `apps/web/tests/unit/workbench-tree.test.tsx`
+- [X] T027 [P] [US1] Add backend contract tests for database discovery, list connections, create connection, and unsaved test in `apps/api/tests/contract/test_connections_api.py`
+- [X] T028 [P] [US1] Add backend integration tests for recursive discovery, allowed extensions, extensionless labels, relative values, blank labels, duplicate labels for one user, same-label allowance across two users, invalid paths, valid unsaved test, and metadata-only create in `apps/api/tests/integration/test_connections_flow.py`
+- [X] T029 [P] [US1] Add frontend unit tests for blank builder rendering, database option loading, empty discovery state, validation messages, test feedback, save success, and submenu refresh in `apps/web/tests/unit/connection-builder.test.tsx`
+- [X] T030 [P] [US1] Add frontend tree regression tests for top-level `Connections` selection and preserved expand/collapse behavior in `apps/web/tests/unit/workbench-tree.test.tsx`
 
 ### Implementation for User Story 1
 
-- [ ] T035 [US1] Implement SQLite open/query validation with no table, column, schema, dataset, variable, or absolute-path output in `apps/api/app/modules/connections/service.py`
-- [ ] T036 [US1] Implement create-time label trimming, case-folded uniqueness, immutable label storage, and duplicate-label errors in `apps/api/app/modules/connections/service.py`
-- [ ] T037 [US1] Implement dataset discovery sorting, recursive extension filtering, extensionless labels, and relative value generation in `apps/api/app/modules/connections/service.py`
-- [ ] T038 [US1] Implement create/list repository persistence helpers in `apps/api/app/modules/connections/repository.py`
-- [ ] T031 [US1] Implement `GET /api/connections/databases` discovery endpoint behavior in `apps/api/app/modules/connections/api.py`
-- [ ] T032 [US1] Implement `GET /api/connections` current-user list endpoint behavior in `apps/api/app/modules/connections/api.py`
-- [ ] T033 [US1] Implement `POST /api/connections` create endpoint behavior in `apps/api/app/modules/connections/api.py`
-- [ ] T034 [US1] Implement `POST /api/connections/test` unsaved test endpoint behavior in `apps/api/app/modules/connections/api.py`
-- [ ] T039 [US1] Implement frontend database discovery, list, create, and unsaved test client calls in `apps/web/features/creditmodeler/connections-client.ts`
-- [ ] T040 [US1] Implement blank new-connection mode with editable label, fixed database type, selector, Test, and Save Connection controls in `apps/web/features/creditmodeler/ConnectionBuilder.tsx`
-- [ ] T041 [US1] Implement frontend loading, empty, validation, test success, test failure, save success, and save failure states in `apps/web/features/creditmodeler/ConnectionBuilder.tsx`
-- [ ] T042 [US1] Render Connection Builder in the canvas for top-level `Connections` selection in `apps/web/components/workbench/CanvasPanel.tsx`
-- [ ] T043 [US1] Remove hard-coded `Server1` and `Server2` connection children from static tree config in `apps/web/config/tree-menu.ts`
-- [ ] T044 [US1] Load saved connections and render them as dynamic children under `Connections` in `apps/web/features/creditmodeler/CreditModelerWorkbench.tsx`
-- [ ] T045 [US1] Add or adjust workbench and builder styles without changing frame geometry in `apps/web/app/globals.css`
+- [X] T035 [US1] Implement SQLite open/query validation with no table, column, schema, dataset, variable, or absolute-path output in `apps/api/app/modules/connections/service.py`
+- [X] T036 [US1] Implement create-time label trimming, case-folded uniqueness, immutable label storage, and duplicate-label errors in `apps/api/app/modules/connections/service.py`
+- [X] T037 [US1] Implement dataset discovery sorting, recursive extension filtering, extensionless labels, and relative value generation in `apps/api/app/modules/connections/service.py`
+- [X] T038 [US1] Implement create/list repository persistence helpers in `apps/api/app/modules/connections/repository.py`
+- [X] T031 [US1] Implement `GET /api/connections/databases` discovery endpoint behavior in `apps/api/app/modules/connections/api.py`
+- [X] T032 [US1] Implement `GET /api/connections` current-user list endpoint behavior in `apps/api/app/modules/connections/api.py`
+- [X] T033 [US1] Implement `POST /api/connections` create endpoint behavior in `apps/api/app/modules/connections/api.py`
+- [X] T034 [US1] Implement `POST /api/connections/test` unsaved test endpoint behavior in `apps/api/app/modules/connections/api.py`
+- [X] T039 [US1] Implement frontend database discovery, list, create, and unsaved test client calls in `apps/web/features/creditmodeler/connections-client.ts`
+- [X] T040 [US1] Implement blank new-connection mode with editable label, fixed database type, selector, Test, and Save Connection controls in `apps/web/features/creditmodeler/ConnectionBuilder.tsx`
+- [X] T041 [US1] Implement frontend loading, empty, validation, test success, test failure, save success, and save failure states in `apps/web/features/creditmodeler/ConnectionBuilder.tsx`
+- [X] T042 [US1] Render Connection Builder in the canvas for top-level `Connections` selection in `apps/web/components/workbench/CanvasPanel.tsx`
+- [X] T043 [US1] Remove hard-coded `Server1` and `Server2` connection children from static tree config in `apps/web/config/tree-menu.ts`
+- [X] T044 [US1] Load saved connections and render them as dynamic children under `Connections` in `apps/web/features/creditmodeler/CreditModelerWorkbench.tsx`
+- [X] T045 [US1] Add or adjust workbench and builder styles without changing frame geometry in `apps/web/app/globals.css`
 
 **Checkpoint**: User Story 1 is independently functional and testable as the MVP.
 
@@ -97,22 +97,22 @@
 
 ### Tests for User Story 2
 
-- [ ] T046 [P] [US2] Add backend contract tests for read connection, update connection, and saved connection test endpoints in `apps/api/tests/contract/test_connections_api.py`
-- [ ] T047 [P] [US2] Add backend integration tests for owner-only read/update/test, immutable label, database update preserving previous `last_tested_at`, missing database failure, and `last_tested_at` success-only updates in `apps/api/tests/integration/test_connections_flow.py`
-- [ ] T048 [P] [US2] Add frontend unit tests for opening a saved connection, populated builder fields, read-only label, database update, saved test feedback, and refreshed selected state in `apps/web/tests/unit/connection-builder.test.tsx`
+- [X] T046 [P] [US2] Add backend contract tests for read connection, update connection, and saved connection test endpoints in `apps/api/tests/contract/test_connections_api.py`
+- [X] T047 [P] [US2] Add backend integration tests for owner-only read/update/test, immutable label, database update preserving previous `last_tested_at`, missing database failure, and `last_tested_at` success-only updates in `apps/api/tests/integration/test_connections_flow.py`
+- [X] T048 [P] [US2] Add frontend unit tests for opening a saved connection, populated builder fields, read-only label, database update, saved test feedback, and refreshed selected state in `apps/web/tests/unit/connection-builder.test.tsx`
 
 ### Implementation for User Story 2
 
-- [ ] T052 [US2] Implement read, update, and saved-test repository helpers in `apps/api/app/modules/connections/repository.py`
-- [ ] T053 [US2] Implement saved-test timestamp update only after successful validation and preserve the previous timestamp on database-only updates in `apps/api/app/modules/connections/service.py`
-- [ ] T049 [US2] Implement `GET /api/connections/{id}` read endpoint behavior with ownership enforcement in `apps/api/app/modules/connections/api.py`
-- [ ] T050 [US2] Implement `PUT /api/connections/{id}` update endpoint behavior with immutable label and database-path validation in `apps/api/app/modules/connections/api.py`
-- [ ] T051 [US2] Implement `POST /api/connections/{id}/test` saved test endpoint behavior with ownership enforcement in `apps/api/app/modules/connections/api.py`
-- [ ] T054 [US2] Implement frontend read, update, and saved-test client calls in `apps/web/features/creditmodeler/connections-client.ts`
-- [ ] T055 [US2] Implement populated existing-connection mode with read-only label and selected database state in `apps/web/features/creditmodeler/ConnectionBuilder.tsx`
-- [ ] T056 [US2] Implement existing-connection save and saved-test UI flows in `apps/web/features/creditmodeler/ConnectionBuilder.tsx`
-- [ ] T057 [US2] Wire saved connection tree item selection to populated builder state in `apps/web/features/creditmodeler/CreditModelerWorkbench.tsx`
-- [ ] T058 [US2] Preserve non-connection canvas hint behavior while routing connection selections in `apps/web/components/workbench/CanvasPanel.tsx`
+- [X] T052 [US2] Implement read, update, and saved-test repository helpers in `apps/api/app/modules/connections/repository.py`
+- [X] T053 [US2] Implement saved-test timestamp update only after successful validation and preserve the previous timestamp on database-only updates in `apps/api/app/modules/connections/service.py`
+- [X] T049 [US2] Implement `GET /api/connections/{id}` read endpoint behavior with ownership enforcement in `apps/api/app/modules/connections/api.py`
+- [X] T050 [US2] Implement `PUT /api/connections/{id}` update endpoint behavior with immutable label and database-path validation in `apps/api/app/modules/connections/api.py`
+- [X] T051 [US2] Implement `POST /api/connections/{id}/test` saved test endpoint behavior with ownership enforcement in `apps/api/app/modules/connections/api.py`
+- [X] T054 [US2] Implement frontend read, update, and saved-test client calls in `apps/web/features/creditmodeler/connections-client.ts`
+- [X] T055 [US2] Implement populated existing-connection mode with read-only label and selected database state in `apps/web/features/creditmodeler/ConnectionBuilder.tsx`
+- [X] T056 [US2] Implement existing-connection save and saved-test UI flows in `apps/web/features/creditmodeler/ConnectionBuilder.tsx`
+- [X] T057 [US2] Wire saved connection tree item selection to populated builder state in `apps/web/features/creditmodeler/CreditModelerWorkbench.tsx`
+- [X] T058 [US2] Preserve non-connection canvas hint behavior while routing connection selections in `apps/web/components/workbench/CanvasPanel.tsx`
 
 **Checkpoint**: User Stories 1 and 2 are independently functional and testable.
 
@@ -126,18 +126,18 @@
 
 ### Tests for User Story 3
 
-- [ ] T059 [P] [US3] Add backend contract tests for delete connection endpoint and non-owned delete rejection in `apps/api/tests/contract/test_connections_api.py`
-- [ ] T060 [P] [US3] Add backend integration tests proving delete removes metadata only and leaves source SQLite files available in `apps/api/tests/integration/test_connections_flow.py`
-- [ ] T061 [P] [US3] Add frontend unit tests for Drop visibility, confirmation cancel, confirmation accept, drop error feedback, and submenu refresh in `apps/web/tests/unit/connection-builder.test.tsx`
+- [X] T059 [P] [US3] Add backend contract tests for delete connection endpoint and non-owned delete rejection in `apps/api/tests/contract/test_connections_api.py`
+- [X] T060 [P] [US3] Add backend integration tests proving delete removes metadata only and leaves source SQLite files available in `apps/api/tests/integration/test_connections_flow.py`
+- [X] T061 [P] [US3] Add frontend unit tests for Drop visibility, confirmation cancel, confirmation accept, drop error feedback, and submenu refresh in `apps/web/tests/unit/connection-builder.test.tsx`
 
 ### Implementation for User Story 3
 
-- [ ] T063 [US3] Implement delete metadata repository helper in `apps/api/app/modules/connections/repository.py`
-- [ ] T064 [US3] Implement delete service behavior that never removes source database files in `apps/api/app/modules/connections/service.py`
-- [ ] T062 [US3] Implement `DELETE /api/connections/{id}` endpoint behavior with ownership enforcement in `apps/api/app/modules/connections/api.py`
-- [ ] T065 [US3] Implement frontend delete client call in `apps/web/features/creditmodeler/connections-client.ts`
-- [ ] T066 [US3] Implement Drop button, confirmation dialog, cancel behavior, success behavior, and failure feedback in `apps/web/features/creditmodeler/ConnectionBuilder.tsx`
-- [ ] T067 [US3] Refresh connection submenu and clear dropped selection after confirmed drop in `apps/web/features/creditmodeler/CreditModelerWorkbench.tsx`
+- [X] T063 [US3] Implement delete metadata repository helper in `apps/api/app/modules/connections/repository.py`
+- [X] T064 [US3] Implement delete service behavior that never removes source database files in `apps/api/app/modules/connections/service.py`
+- [X] T062 [US3] Implement `DELETE /api/connections/{id}` endpoint behavior with ownership enforcement in `apps/api/app/modules/connections/api.py`
+- [X] T065 [US3] Implement frontend delete client call in `apps/web/features/creditmodeler/connections-client.ts`
+- [X] T066 [US3] Implement Drop button, confirmation dialog, cancel behavior, success behavior, and failure feedback in `apps/web/features/creditmodeler/ConnectionBuilder.tsx`
+- [X] T067 [US3] Refresh connection submenu and clear dropped selection after confirmed drop in `apps/web/features/creditmodeler/CreditModelerWorkbench.tsx`
 
 **Checkpoint**: All user stories are independently functional and testable.
 
@@ -147,13 +147,13 @@
 
 **Purpose**: Verification, visual stability, docs consistency, and final cleanup across stories.
 
-- [ ] T068 [P] Add or update e2e coverage for create, reopen, update, and drop flows, including visible feedback within 2 seconds during local acceptance verification, in `apps/web/tests/e2e/local-interactions.spec.ts`
-- [ ] T069 [P] Add or update desktop geometry assertions for Connection Builder canvas rendering in `apps/web/tests/visual/layout-geometry.spec.ts`
-- [ ] T070 [P] Review quickstart validation steps against implemented behavior in `specs/007-connections-builder/quickstart.md`
-- [ ] T071 Run backend verification command documented in `specs/007-connections-builder/quickstart.md`
-- [ ] T072 Run frontend unit and lint verification commands documented in `specs/007-connections-builder/quickstart.md`
-- [ ] T073 Run frontend visual verification command documented in `specs/007-connections-builder/quickstart.md`
-- [ ] T074 Review generated feature docs for consistency after implementation in `specs/007-connections-builder/plan.md`
+- [X] T068 [P] Add or update e2e coverage for create, reopen, update, and drop flows, including visible feedback within 2 seconds during local acceptance verification, in `apps/web/tests/e2e/local-interactions.spec.ts`
+- [X] T069 [P] Add or update desktop geometry assertions for Connection Builder canvas rendering in `apps/web/tests/visual/layout-geometry.spec.ts`
+- [X] T070 [P] Review quickstart validation steps against implemented behavior in `specs/007-connections-builder/quickstart.md`
+- [X] T071 Run backend verification command documented in `specs/007-connections-builder/quickstart.md`
+- [X] T072 Run frontend unit and lint verification commands documented in `specs/007-connections-builder/quickstart.md`
+- [X] T073 Run frontend visual verification command documented in `specs/007-connections-builder/quickstart.md`
+- [X] T074 Review generated feature docs for consistency after implementation in `specs/007-connections-builder/plan.md`
 
 ---
 

@@ -66,6 +66,8 @@ Run from `apps/web` when workbench layout or CSS changes are made:
 npm run test:visual:desktop
 ```
 
+Protected-route visual checks use the same backend-auth gate as the protected e2e interaction tests. Without `E2E_AUTH_WITH_BACKEND` and a reachable backend auth service, those protected-route checks are skipped while public/login visual checks still run.
+
 Expected outcome:
 
 - Workbench frame, tree column, and canvas geometry remain aligned with the existing baseline.

@@ -117,4 +117,122 @@ test.describe("local login and shell interactions", () => {
     await adjustedIncome.click();
     await expect(adjustedIncome).toHaveAttribute("aria-pressed", "true");
   });
+
+  test("creates, reopens, updates, and drops a saved connection with prompt feedback", async ({ page, request }) => {
+    test.skip(!process.env.E2E_AUTH_WITH_BACKEND, "Requires backend auth services and env wiring.");
+
+    const storageState = await createAuthenticatedStorageState(request);
+    await page.context().addCookies(storageState.cookies);
+
+    let savedConnection = {
+      id: "conn_1",
+      label: "Loan Book",
+      driver: "sqlite",
+      database_path: "risk/loan_book.sqlite",
+      created_at: "2026-07-16T10:00:00Z",
+      updated_at: "2026-07-16T10:00:00Z",
+      last_tested_at: null as string | null
+    };
+    let connections = [] as typeof savedConnection[];
+
+    await page.route("**/api/connections/databases", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          databases: [
+            { value: "risk/loan_book.sqlite", label: "risk/loan_book" },
+            { value: "portfolio.db", label: "portfolio" }
+          ]
+        })
+      });
+    });
+    await page.route("**/api/connections", async (route) => {
+      const requestMethod = route.request().method();
+      if (requestMethod === "GET") {
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ connections }) });
+        return;
+      }
+      if (requestMethod === "POST") {
+        connections = [savedConnection];
+        await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(savedConnection) });
+        return;
+      }
+      await route.fallback();
+    });
+    await page.route("**/api/connections/test", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, message: "Connection test succeeded." })
+      });
+    });
+    await page.route("**/api/connections/conn_1", async (route) => {
+      const requestMethod = route.request().method();
+      if (requestMethod === "GET") {
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(savedConnection) });
+        return;
+      }
+      if (requestMethod === "PUT") {
+        savedConnection = { ...savedConnection, database_path: "portfolio.db", updated_at: "2026-07-16T10:02:00Z" };
+        connections = [savedConnection];
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(savedConnection) });
+        return;
+      }
+      if (requestMethod === "DELETE") {
+        connections = [];
+        await route.fulfill({ status: 204 });
+        return;
+      }
+      await route.fallback();
+    });
+    await page.route("**/api/connections/conn_1/test", async (route) => {
+      savedConnection = { ...savedConnection, last_tested_at: "2026-07-16T10:05:00Z" };
+      connections = [savedConnection];
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, message: "Connection test succeeded.", connection: savedConnection })
+      });
+    });
+
+    await page.goto("/creditmodeler-service");
+    await waitForStablePage(page);
+
+    await page.getByRole("button", { name: "Connections" }).click();
+    await expect(page.getByRole("heading", { name: "New database connection" })).toBeVisible({ timeout: 2000 });
+
+    await page.getByLabel("Connection label").fill("Loan Book");
+    await page.getByLabel("Database").selectOption("risk/loan_book.sqlite");
+    await page.getByRole("button", { name: "Test" }).click();
+    await expect(page.getByText("Connection test succeeded.")).toBeVisible({ timeout: 2000 });
+
+    await page.getByRole("button", { name: "Save Connection" }).click();
+    await expect(page.getByText("Connection saved.")).toBeVisible({ timeout: 2000 });
+    await expect(page.getByRole("button", { name: "Loan Book" })).toBeVisible({ timeout: 2000 });
+
+    await page.getByRole("button", { name: "Loan Book" }).click();
+    await expect(page.getByRole("heading", { name: "Loan Book" })).toBeVisible({ timeout: 2000 });
+    await expect(page.getByLabel("Connection label")).toHaveAttribute("readonly", "");
+
+    await page.getByLabel("Database").selectOption("portfolio.db");
+    await page.getByRole("button", { name: "Save Connection" }).click();
+    await expect(page.getByText("Connection saved.")).toBeVisible({ timeout: 2000 });
+
+    await page.getByRole("button", { name: "Test" }).click();
+    await expect(page.getByText("Connection test succeeded.")).toBeVisible({ timeout: 2000 });
+
+    page.once("dialog", async (dialog) => {
+      expect(dialog.message()).toContain("source database file will not be deleted");
+      await dialog.dismiss();
+    });
+    await page.getByRole("button", { name: "Drop" }).click();
+    await expect(page.getByRole("button", { name: "Loan Book" })).toBeVisible();
+
+    page.once("dialog", async (dialog) => {
+      await dialog.accept();
+    });
+    await page.getByRole("button", { name: "Drop" }).click();
+    await expect(page.getByRole("button", { name: "Loan Book" })).toHaveCount(0, { timeout: 2000 });
+  });
 });

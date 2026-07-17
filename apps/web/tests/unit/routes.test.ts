@@ -1,6 +1,6 @@
 import { createElement } from "react";
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 
 import ApplicationsPage from "@/app/(protected)/applications/page";
 import ProtectedLayout from "@/app/(protected)/layout";
@@ -21,6 +21,7 @@ const cookiesMock = vi.fn(async () => ({
 
 const headersMock = vi.fn(async () => new Headers());
 const validateServerSessionMock = vi.fn();
+const listConnectionsMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   redirect: (target: string) => redirectMock(target),
@@ -38,6 +39,10 @@ vi.mock("@/lib/auth/auth-server", () => ({
   validateServerSession: (...args: unknown[]) => validateServerSessionMock(...args)
 }));
 
+vi.mock("@/features/creditmodeler/connections-client", () => ({
+  listConnections: (...args: unknown[]) => listConnectionsMock(...args)
+}));
+
 describe("migrated route pages", () => {
   beforeEach(() => {
     redirectMock.mockClear();
@@ -45,6 +50,8 @@ describe("migrated route pages", () => {
     headersMock.mockClear();
     validateServerSessionMock.mockReset();
     validateServerSessionMock.mockResolvedValue(unauthenticatedAuthOutcome());
+    listConnectionsMock.mockReset();
+    listConnectionsMock.mockResolvedValue({ connections: [] });
   });
 
   it("exposes the expected standalone route paths", () => {
@@ -92,13 +99,14 @@ describe("migrated route pages", () => {
     expect(screen.getByRole("button", { name: "Add New Service" })).toBeInTheDocument();
   });
 
-  it("renders the CreditModeler workbench page content", () => {
+  it("renders the CreditModeler workbench page content", async () => {
     render(createElement(CreditModelerServicePage));
 
     expect(screen.getByText("CreditModeler")).toBeInTheDocument();
     expect(screen.getByLabelText("Workflow stages")).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Service objects" })).toBeInTheDocument();
     expect(screen.getByText(/There is currently no business logic open now/i)).toBeInTheDocument();
+    await waitFor(() => expect(listConnectionsMock).toHaveBeenCalled());
   });
 
   it("redirects unauthenticated protected-layout requests to /login with next", async () => {
