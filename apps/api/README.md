@@ -75,4 +75,6 @@ Logout:
 Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/auth/logout" -Method POST -WebSession $session
 ```
 
+## Opencode sessions
 
+ses_092b2c61effexbLMPlgg48oKhs

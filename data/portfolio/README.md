@@ -25,4 +25,12 @@ Run the importer from the repository root:
 python data/portfolio/build_portfolio_db.py
 ```
 
-The script recreates `data/portfolio/portfolio.db` from the current `.sav` files.
+The script recreates `data/datasets/portfolio.db` from the current `.sav` files.
+
+## Tests
+
+Run tests from:
+
+```bash
+python data/portfolio/test_portfolio_db.py
+```

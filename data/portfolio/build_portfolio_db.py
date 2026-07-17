@@ -32,7 +32,7 @@ def build_portfolio_db(source_dir: Path, output_path: Path) -> Path:
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[2]
     source_dir = repo_root / "data" / "portfolio"
-    output_path = source_dir / "portfolio.db"
+    output_path = repo_root / "data" / "datasets" / "portfolio.db"
     build_portfolio_db(source_dir, output_path)
 
 
