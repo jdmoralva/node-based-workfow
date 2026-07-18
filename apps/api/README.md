@@ -114,3 +114,4 @@ python -m pytest tests/integration/test_auth_session_flow.py
 ## Opencode sessions
 
 ses_092b2c61effexbLMPlgg48oKhs
+ses_089c204cfffefhAhgs2Ff12k4h
