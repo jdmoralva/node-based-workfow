@@ -12,6 +12,7 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.modules.connections.models import DatabaseConnection
+    from app.modules.data_models.models import AnalyticalDataModel
 
 
 def _new_id(prefix: str) -> str:
@@ -38,6 +39,7 @@ class InternalUser(Base):
 
     sessions: Mapped[list[AuthenticatedSession]] = relationship(back_populates="user", cascade="all, delete-orphan")
     connections: Mapped[list[DatabaseConnection]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    data_models: Mapped[list[AnalyticalDataModel]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
 class AuthenticatedSession(Base):

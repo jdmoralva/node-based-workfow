@@ -199,11 +199,11 @@ test.describe("local login and shell interactions", () => {
     await page.goto("/creditmodeler-service");
     await waitForStablePage(page);
 
-    await page.getByRole("button", { name: "Connections" }).click();
+    await page.getByRole("button", { name: "Connections", exact: true }).click();
     await expect(page.getByRole("heading", { name: "New database connection" })).toBeVisible({ timeout: 2000 });
 
     await page.getByLabel("Connection label").fill("Loan Book");
-    await page.getByLabel("Database").selectOption("risk/loan_book.sqlite");
+    await page.getByTestId("connection-builder").locator("select").selectOption("risk/loan_book.sqlite");
     await page.getByRole("button", { name: "Test" }).click();
     await expect(page.getByText("Connection test succeeded.")).toBeVisible({ timeout: 2000 });
 
@@ -215,7 +215,7 @@ test.describe("local login and shell interactions", () => {
     await expect(page.getByRole("heading", { name: "Loan Book" })).toBeVisible({ timeout: 2000 });
     await expect(page.getByLabel("Connection label")).toHaveAttribute("readonly", "");
 
-    await page.getByLabel("Database").selectOption("portfolio.db");
+    await page.getByTestId("connection-builder").locator("select").selectOption("portfolio.db");
     await page.getByRole("button", { name: "Save Connection" }).click();
     await expect(page.getByText("Connection saved.")).toBeVisible({ timeout: 2000 });
 
@@ -234,5 +234,160 @@ test.describe("local login and shell interactions", () => {
     });
     await page.getByRole("button", { name: "Drop" }).click();
     await expect(page.getByRole("button", { name: "Loan Book" })).toHaveCount(0, { timeout: 2000 });
+  });
+
+  test("creates, reopens, tests, saves stale, and drops a saved data model", async ({ page, request }) => {
+    test.skip(!process.env.E2E_AUTH_WITH_BACKEND, "Requires backend auth services and env wiring.");
+
+    const storageState = await createAuthenticatedStorageState(request);
+    await page.context().addCookies(storageState.cookies);
+
+    let dataModel = {
+      id: "model_1",
+      name: "Portfolio Star",
+      description: "",
+      model: { sources: [], fact_table: null, dimensions: [], relationships: [], business_rules: [], measures: [], metadata: {} },
+      test_status: "draft",
+      diagnostics_stale: false,
+      last_tested_at: null,
+      last_test_succeeded_at: null,
+      last_test_failed_at: null,
+      last_test_errors: [],
+      last_test_warnings: [],
+      created_at: "2026-07-18T10:00:00Z",
+      updated_at: "2026-07-18T10:00:00Z"
+    };
+    let models = [] as typeof dataModel[];
+
+    await page.route("**/api/connections", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ connections: [] }) });
+    });
+    await page.route("**/api/data-models", async (route) => {
+      const requestMethod = route.request().method();
+      if (requestMethod === "GET") {
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: models }) });
+        return;
+      }
+      if (requestMethod === "POST") {
+        models = [dataModel];
+        await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(dataModel) });
+        return;
+      }
+      await route.fallback();
+    });
+    await page.route("**/api/data-models/model_1", async (route) => {
+      const requestMethod = route.request().method();
+      if (requestMethod === "GET") {
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(dataModel) });
+        return;
+      }
+      if (requestMethod === "PUT") {
+        dataModel = { ...dataModel, description: "Edited", test_status: "stale", diagnostics_stale: true, last_test_warnings: [{ severity: "warning", code: "compile_only", message: "Compilation only.", location: null, stale: true }] };
+        models = [dataModel];
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(dataModel) });
+        return;
+      }
+      if (requestMethod === "DELETE") {
+        models = [];
+        await route.fulfill({ status: 204 });
+        return;
+      }
+      await route.fallback();
+    });
+    await page.route("**/api/data-models/model_1/test", async (route) => {
+      dataModel = { ...dataModel, test_status: "tested", last_tested_at: "2026-07-18T10:05:00Z", last_test_succeeded_at: "2026-07-18T10:05:00Z" };
+      models = [dataModel];
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ succeeded: true, status: "tested", errors: [], warnings: [{ severity: "warning", code: "compile_only", message: "Compilation only.", location: null, stale: false }] }) });
+    });
+
+    await page.goto("/creditmodeler-service");
+    await waitForStablePage(page);
+
+    await page.getByRole("button", { name: "Data Models", exact: true }).click();
+    await page.getByLabel("Data model name").fill("Portfolio Star");
+    await page.getByRole("button", { name: "Save Draft" }).click();
+    await expect(page.getByRole("button", { name: "Portfolio Star" })).toBeVisible({ timeout: 2000 });
+
+    await page.getByRole("button", { name: "Portfolio Star" }).click();
+    await expect(page.getByLabel("Data model name")).toHaveAttribute("readonly", "");
+
+    await page.getByRole("button", { name: "Test" }).click();
+    await expect(page.getByText("Data model test succeeded.")).toBeVisible({ timeout: 2000 });
+
+    await page.getByLabel("Description").fill("Edited");
+    await page.getByRole("button", { name: "Save Changes" }).click();
+    await expect(page.getByText("Diagnostics are stale after the latest save.")).toBeVisible({ timeout: 2000 });
+
+    page.once("dialog", async (dialog) => {
+      await dialog.accept();
+    });
+    await page.getByRole("button", { name: "Drop" }).click();
+    await expect(page.getByRole("button", { name: "Portfolio Star" })).toHaveCount(0, { timeout: 2000 });
+  });
+
+  test("repairs a saved data model after a referenced connection is deleted", async ({ page, request }) => {
+    test.skip(!process.env.E2E_AUTH_WITH_BACKEND, "Requires backend auth services and env wiring.");
+
+    const storageState = await createAuthenticatedStorageState(request);
+    await page.context().addCookies(storageState.cookies);
+
+    let dataModel = {
+      id: "model_repair",
+      name: "Repairable Star",
+      description: "",
+      model: {
+        sources: [{ connection_id: "conn_missing", alias: "portfolio", metadata: {} }],
+        fact_table: { connection_id: "conn_missing", table: "loans", object_type: "table", alias: "fact_loans", grain: null, primary_key: ["account_id"], metadata: {} },
+        dimensions: [{ id: "dim_customers", connection_id: "conn_missing", table: "customers", object_type: "table", alias: "dim_customers", primary_key: ["customer_id"], metadata: {} }],
+        relationships: [{ id: "rel_customers", dimension_id: "dim_customers", join_type: "left", key_pairs: [{ fact_column: "customer_id", dimension_column: "customer_id" }], metadata: {} }],
+        business_rules: [{ id: "rule_1", name: "rule", expression: "upper(dim_customers.name)", output_type: "text", metadata: {} }],
+        measures: [],
+        metadata: {}
+      },
+      test_status: "failed",
+      diagnostics_stale: false,
+      last_tested_at: null,
+      last_test_succeeded_at: null,
+      last_test_failed_at: null,
+      last_test_errors: [{ severity: "error", code: "missing_connection", message: "A referenced Connection is missing. Select a replacement source to repair this model.", location: { section: "sources", connection_id: "conn_missing" }, stale: false }],
+      last_test_warnings: [],
+      created_at: "2026-07-18T10:00:00Z",
+      updated_at: "2026-07-18T10:00:00Z"
+    };
+
+    await page.route("**/api/connections", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ connections: [{ id: "conn_replacement", label: "Replacement", driver: "sqlite", database_path: "replacement.db", created_at: "2026-07-18T10:00:00Z", updated_at: "2026-07-18T10:00:00Z", last_tested_at: null }] })
+      });
+    });
+    await page.route("**/api/data-models", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [dataModel] }) });
+    });
+    await page.route("**/api/data-models/model_repair", async (route) => {
+      if (route.request().method() === "PUT") {
+        const payload = route.request().postDataJSON() as { model: typeof dataModel.model };
+        dataModel = { ...dataModel, model: payload.model, test_status: "untested", last_test_errors: [] };
+      }
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(dataModel) });
+    });
+    await page.route("**/api/data-models/model_repair/test", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ succeeded: true, status: "tested", errors: [], warnings: [{ severity: "warning", code: "compile_only", message: "Compilation only.", location: null, stale: false }] }) });
+    });
+
+    await page.goto("/creditmodeler-service");
+    await waitForStablePage(page);
+
+    await page.getByRole("button", { name: "Repairable Star" }).click();
+    await expect(page.getByText("A referenced Connection is missing. Select a replacement source to repair this model.")).toBeVisible({ timeout: 2000 });
+    await page.getByLabel("Replacement connection").selectOption("conn_replacement");
+    await page.getByRole("button", { name: "Repair Source" }).click();
+    await expect(page.getByText("Source repaired. Review preserved configuration before retesting.")).toBeVisible({ timeout: 2000 });
+    await expect(page.getByText("fact_loans", { exact: true })).toBeVisible();
+    await expect(page.getByText("dim_customers", { exact: true })).toBeVisible();
+
+    await page.getByRole("button", { name: "Test" }).click();
+    await expect(page.getByText("Data model test succeeded.")).toBeVisible({ timeout: 2000 });
   });
 });

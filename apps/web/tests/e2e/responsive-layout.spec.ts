@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { requiredViewports } from "../helpers/viewports";
+import { createAuthenticatedStorageState } from "../helpers/auth-session";
 import { hasHorizontalOverflow, measureElement } from "../helpers/measure-layout";
 import { waitForStablePage } from "../helpers/wait-for-stable-page";
 
@@ -25,7 +26,14 @@ const viewportCases = [
 test.describe("responsive layout coverage", () => {
   for (const [viewportLabel, viewport] of viewportCases) {
     for (const routeCheck of routeChecks) {
-      test(`${routeCheck.path} remains usable at ${viewportLabel}`, async ({ page }) => {
+      test(`${routeCheck.path} remains usable at ${viewportLabel}`, async ({ page, request }) => {
+        test.skip(routeCheck.requiresAppNav && !process.env.E2E_AUTH_WITH_BACKEND, "Requires backend auth services and env wiring.");
+
+        if (routeCheck.requiresAppNav) {
+          const storageState = await createAuthenticatedStorageState(request);
+          await page.context().addCookies(storageState.cookies);
+        }
+
         await page.setViewportSize(viewport);
         await page.goto(routeCheck.path);
         await waitForStablePage(page);
@@ -55,5 +63,32 @@ test.describe("responsive layout coverage", () => {
         expect(horizontalScroll).toBe(false);
       });
     }
+  }
+
+  for (const [viewportLabel, viewport] of viewportCases) {
+    test(`Data Model Builder remains within the workbench canvas at ${viewportLabel}`, async ({ page, request }) => {
+      test.skip(!process.env.E2E_AUTH_WITH_BACKEND, "Requires backend auth services and env wiring.");
+
+      const storageState = await createAuthenticatedStorageState(request);
+      await page.context().addCookies(storageState.cookies);
+      await page.route("**/api/connections", async (route) => {
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ connections: [] }) });
+      });
+      await page.route("**/api/data-models", async (route) => {
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [] }) });
+      });
+
+      await page.setViewportSize(viewport);
+      await page.goto("/creditmodeler-service");
+      await waitForStablePage(page);
+      await page.getByRole("button", { name: "Data Models", exact: true }).click();
+
+      const canvasBox = await measureElement(page.getByTestId("workbench-canvas"));
+      const builderBox = await measureElement(page.getByTestId("data-model-builder"));
+
+      expect(builderBox.x).toBeGreaterThanOrEqual(canvasBox.x);
+      expect(builderBox.x + builderBox.width).toBeLessThanOrEqual(canvasBox.x + canvasBox.width + 1);
+      expect(await hasHorizontalOverflow(page)).toBe(false);
+    });
   }
 });

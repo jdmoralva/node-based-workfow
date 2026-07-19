@@ -14,6 +14,7 @@ import {
   testUnsavedConnection,
   updateConnection
 } from "@/features/creditmodeler/connections-client";
+import { listDataModels } from "@/features/creditmodeler/data-models-client";
 
 vi.mock("@/features/creditmodeler/connections-client", () => ({
   createConnection: vi.fn(),
@@ -26,6 +27,10 @@ vi.mock("@/features/creditmodeler/connections-client", () => ({
   updateConnection: vi.fn()
 }));
 
+vi.mock("@/features/creditmodeler/data-models-client", () => ({
+  listDataModels: vi.fn()
+}));
+
 const mockedListDatabaseOptions = vi.mocked(listDatabaseOptions);
 const mockedListConnections = vi.mocked(listConnections);
 const mockedCreateConnection = vi.mocked(createConnection);
@@ -34,6 +39,7 @@ const mockedReadConnection = vi.mocked(readConnection);
 const mockedTestSavedConnection = vi.mocked(testSavedConnection);
 const mockedTestUnsavedConnection = vi.mocked(testUnsavedConnection);
 const mockedUpdateConnection = vi.mocked(updateConnection);
+const mockedListDataModels = vi.mocked(listDataModels);
 
 describe("ConnectionBuilder", () => {
   beforeEach(() => {
@@ -225,6 +231,7 @@ describe("CreditModelerWorkbench connections", () => {
     vi.clearAllMocks();
     mockedListDatabaseOptions.mockResolvedValue({ databases: [{ value: "portfolio.db", label: "portfolio" }] });
     mockedListConnections.mockResolvedValue({ connections: [] });
+    mockedListDataModels.mockResolvedValue({ items: [] });
     mockedCreateConnection.mockResolvedValue({
       id: "conn_1",
       label: "Portfolio",
@@ -330,5 +337,47 @@ describe("CreditModelerWorkbench connections", () => {
     await waitFor(() => expect(mockedDeleteConnection).toHaveBeenCalledWith("conn_1"));
     expect(within(tree).queryByRole("button", { name: "Portfolio" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Portfolio" })).not.toBeInTheDocument();
+  });
+
+  it("keeps saved Connections selectable when Data Models have dynamic children", async () => {
+    const user = userEvent.setup();
+    mockedListConnections.mockResolvedValue({
+      connections: [
+        {
+          id: "conn_1",
+          label: "Portfolio",
+          driver: "sqlite",
+          database_path: "portfolio.db",
+          created_at: "2026-07-16T10:00:00Z",
+          updated_at: "2026-07-16T10:00:00Z",
+          last_tested_at: null
+        }
+      ]
+    });
+    mockedListDataModels.mockResolvedValue({
+      items: [
+        {
+          id: "model_1",
+          name: "Portfolio Star",
+          description: "",
+          test_status: "draft",
+          diagnostics_stale: false,
+          last_tested_at: null,
+          last_test_succeeded_at: null,
+          last_test_failed_at: null,
+          created_at: "2026-07-18T10:00:00Z",
+          updated_at: "2026-07-18T10:00:00Z"
+        }
+      ]
+    });
+    render(<CreditModelerWorkbench />);
+
+    const tree = screen.getByTestId("workbench-tree");
+    expect(await within(tree).findByRole("button", { name: "Portfolio Star" })).toBeInTheDocument();
+    await user.click(await within(tree).findByRole("button", { name: "Portfolio" }));
+
+    expect(await screen.findByRole("heading", { name: "Portfolio" })).toBeInTheDocument();
+    expect(mockedReadConnection).toHaveBeenCalledWith("conn_1");
+    expect(screen.getByLabelText("Connection label")).toHaveAttribute("readonly");
   });
 });
