@@ -8,6 +8,14 @@
 
 **Input**: User description: "@docs/nfr/CreditModeler Data Models Builder Multi-Phase Plan.md"
 
+## Clarifications
+
+### Session 2026-07-18
+
+- Q: How should the system handle concurrent edits to the same saved data model? → A: Last save wins; no merge or conflict prompt.
+- Q: What MVP complexity caps should apply to a single data model? → A: Up to 5 sources, 25 dimensions, and 50 business rules.
+- Q: Should Test remain available for incomplete draft models? → A: Test stays clickable for incomplete drafts.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Build and Test a Data Model (Priority: P1)
@@ -62,6 +70,7 @@ As an internal CreditModeler user, I want saved data models to remain visible an
 - A user tries to create two data models with names that differ only by case or leading/trailing spaces.
 - A user attempts to rename an existing data model after creation.
 - A user saves a draft with only a name and no selected sources.
+- A user clicks Test on an incomplete draft and receives structured completeness diagnostics.
 - A saved source exposes SQLite system objects or hidden internals.
 - A selected source contains views as well as tables.
 - A dimension is reused with different aliases for role-playing use cases.
@@ -69,6 +78,8 @@ As an internal CreditModeler user, I want saved data models to remain visible an
 - A relationship attempts to connect a dimension to another dimension instead of directly to the fact table.
 - A model includes non-empty measures even though measure computation is not part of this release.
 - A test fails after previous success; the prior successful test timestamp must remain distinguishable from the latest failed test.
+- Two sessions save changes to the same data model; the latest save becomes the active model without merge or conflict prompts.
+- A user tries to save or test a model that exceeds the MVP caps of 5 sources, 25 dimensions, or 50 business rules.
 
 ## Requirements *(mandatory)*
 
@@ -91,24 +102,27 @@ As an internal CreditModeler user, I want saved data models to remain visible an
 - **FR-015**: The system MUST support single-column and composite relationship keys.
 - **FR-016**: The system MUST support left and inner joins, default new relationships to left joins, and warn users when inner joins are used.
 - **FR-017**: The system MUST allow editable source aliases, fact aliases, dimension aliases, and business rule names.
-- **FR-018**: The system MUST automatically update relationships and business rule references when aliases are edited, preserving user intent where expressions can be safely rewritten.
-- **FR-019**: The system MUST support row-level business rules using constrained SQL-like expressions with column references, literals, arithmetic, comparisons, boolean logic, case expressions, and approved scalar functions.
+- **FR-018**: The system MUST automatically update relationship alias references and business rule references when source, fact, or dimension aliases are edited. Relationship updates are safe when the referenced source or dimension identity is unchanged; business rule rewrites are safe only when every qualified alias reference can be mapped unambiguously to the edited alias, otherwise the original expression is preserved and marked invalid with diagnostics.
+- **FR-019**: The system MUST support row-level business rules using constrained SQL-like expressions with column references, literals, arithmetic, comparisons, boolean logic, case expressions, and only these approved scalar functions: `abs`, `coalesce`, `ifnull`, `lower`, `ltrim`, `max`, `min`, `nullif`, `round`, `rtrim`, `substr`, `trim`, `upper`.
 - **FR-020**: The system MUST reject unsafe or unsupported business rule content, including comments, semicolons, full statements, subqueries, data-changing operations, schema-changing operations, window logic, unknown functions, unknown aliases, and unknown columns.
 - **FR-021**: The system MUST preserve invalid business rules and mark them invalid with diagnostics instead of automatically deleting them.
 - **FR-022**: The system MUST reject non-empty measures for this release while preserving an explicit empty measures area for future extension.
 - **FR-023**: The system MUST let users test unsaved and saved data model definitions for compilation without executing analytical workloads, profiling data, computing measures, or materializing modeled datasets.
 - **FR-024**: The system MUST return structured test results containing success state, safe errors, and safe warnings.
 - **FR-025**: The system MUST warn users that the test validates compilation only and does not prove row retention, fanout, unmatched dimensions, or cardinality correctness.
-- **FR-026**: The system MUST persist the latest saved-model test status, test timestamps, structured errors, structured warnings, and whether diagnostics are stale.
-- **FR-027**: The system MUST classify saved data models as draft, untested, tested, failed, or stale according to current completeness, latest test outcome, edits, and referenced source changes.
-- **FR-028**: The system MUST mark diagnostics stale when a saved model is edited after its latest test.
-- **FR-029**: The system MUST keep saved data models visible when referenced connections are deleted or changed, and report repairable diagnostics when the model is opened or tested.
-- **FR-030**: The system MUST allow users to replace missing referenced connections while preserving table names, aliases, relationships, and business rules where possible.
-- **FR-031**: The system MUST allow users to list all saved data models and optionally filter by one current status.
-- **FR-032**: The system MUST allow users to read, update, test, and drop only data models they own.
-- **FR-033**: The system MUST show clear user feedback for loading, validation, test success, test failure, save success, save failure, drop success, drop failure, missing connections, stale diagnostics, and draft completeness gaps.
-- **FR-034**: The system MUST render a readable star-schema preview of the current fact table, dimensions, relationships, aliases, and business rules.
-- **FR-035**: The system MUST keep the Data Models builder within the existing CreditModeler workbench layout and remain usable on desktop and narrow viewports.
+- **FR-026**: The system MUST keep Test available for incomplete drafts and return structured completeness diagnostics when required model sections are missing.
+- **FR-027**: The system MUST persist the latest saved-model test status, test timestamps, structured errors, structured warnings, and whether diagnostics are stale.
+- **FR-028**: The system MUST classify saved data models as draft, untested, tested, failed, or stale according to current completeness, latest test outcome, edits, and referenced source changes.
+- **FR-029**: The system MUST mark diagnostics stale when a saved model is edited after its latest test.
+- **FR-030**: The system MUST keep saved data models visible when referenced connections are deleted or changed, and report repairable diagnostics when the model is opened or tested.
+- **FR-031**: The system MUST allow users to replace missing referenced connections while preserving table names, aliases, relationships, and business rules where possible.
+- **FR-032**: The system MUST allow users to list all saved data models and optionally filter by one current status.
+- **FR-033**: The system MUST allow users to read, update, test, and drop only data models they own.
+- **FR-034**: The system MUST show clear user feedback for loading, validation, test success, test failure, save success, save failure, drop success, drop failure, missing connections, stale diagnostics, and draft completeness gaps.
+- **FR-035**: The system MUST render a readable star-schema preview of the current fact table, dimensions, relationships, aliases, and business rules.
+- **FR-036**: The system MUST keep the Data Models builder within the existing CreditModeler workbench layout and remain usable on desktop and narrow viewports.
+- **FR-037**: If two sessions save changes to the same data model, the system MUST treat the latest successful save as the active model without merge or conflict prompts.
+- **FR-038**: The system MUST limit each data model to no more than 5 source connections, 25 dimensions, and 50 business rules for this release.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -132,6 +146,7 @@ As an internal CreditModeler user, I want saved data models to remain visible an
 - **SC-006**: At least 95% of common validation mistakes in pilot testing produce a specific actionable message rather than a generic failure.
 - **SC-007**: Existing Connections workbench behavior remains unchanged in regression testing while Data Models dynamic child items are introduced.
 - **SC-008**: The builder remains usable on narrow viewports, with all primary actions and diagnostics accessible without horizontal page scrolling.
+- **SC-009**: Users receive a clear validation message 100% of the time when a model exceeds the MVP caps of 5 sources, 25 dimensions, or 50 business rules.
 
 ## Assumptions
 
