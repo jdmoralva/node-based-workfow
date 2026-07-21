@@ -14,6 +14,18 @@ const blankModel: DataModelDefinition = {
 };
 
 describe("data-models client", () => {
+  it("uses a safe API detail when a request fails", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: () => Promise.resolve({ detail: "A data model with this name already exists." })
+    });
+
+    await expect(createDataModel({ name: "Portfolio Star", model: blankModel }, { apiBaseUrl: "" }, fetchImpl)).rejects.toThrow(
+      "A data model with this name already exists."
+    );
+  });
+
   it("inspects connection schema with credentials", async () => {
     const fetchImpl = vi.fn().mockResolvedValue({
       ok: true,

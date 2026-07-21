@@ -125,8 +125,8 @@ test.describe("responsive usability details", () => {
 
       expect(previewBox.y).toBeGreaterThan(setupBox.y + setupBox.height - 4);
       await expect(page.getByRole("button", { name: "Save Draft" })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Test" })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Test" })).toBeEnabled();
+      await expect(page.getByRole("button", { name: "Test model" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Test model" })).toBeEnabled();
     });
   }
 });

@@ -1,0 +1,416 @@
+<style>
+  .direction-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+    margin-top: 22px;
+  }
+
+  .direction-card {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+    cursor: pointer;
+    transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  }
+
+  .direction-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 14px 30px rgba(60, 70, 110, 0.11);
+    transform: translateY(-2px);
+  }
+
+  .direction-card.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+
+  .mini-app {
+    min-height: 380px;
+    padding: 9px;
+    background: #edf0f5;
+    color: #283042;
+    font-family: Arial, sans-serif;
+  }
+
+  .mini-shell {
+    height: 100%;
+    overflow: hidden;
+    border: 1px solid #cfd5e0;
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  .mini-topbar {
+    height: 25px;
+    display: flex;
+    align-items: center;
+    padding: 0 9px;
+    border-bottom: 1px solid #dfe3ea;
+    color: #777e92;
+    font-size: 7px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+  }
+
+  .mini-workbench {
+    display: grid;
+    grid-template-columns: 62px 1fr;
+    min-height: 336px;
+  }
+
+  .mini-tree {
+    padding: 12px 7px;
+    border-right: 1px solid #dfe3ea;
+    background: #fafbfc;
+    color: #777e92;
+    font-size: 6px;
+    line-height: 2.1;
+  }
+
+  .mini-tree strong {
+    display: block;
+    color: #555e78;
+  }
+
+  .mini-canvas {
+    min-width: 0;
+    background: #f7f8fb;
+  }
+
+  .mini-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 11px 12px 8px;
+    background: #fff;
+    border-bottom: 1px solid #e2e5ec;
+  }
+
+  .mini-title {
+    margin: 0;
+    font-size: 10px;
+    font-weight: 800;
+  }
+
+  .mini-kicker {
+    margin-bottom: 2px;
+    color: #797ca8;
+    font-size: 5px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .mini-status {
+    padding: 3px 6px;
+    border: 1px solid #dacb91;
+    border-radius: 999px;
+    background: #fff9df;
+    color: #7c6827;
+    font-size: 5px;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .mini-section {
+    border: 1px solid #dfe3ea;
+    border-radius: 7px;
+    background: #fff;
+  }
+
+  .mini-section-head {
+    display: flex;
+    justify-content: space-between;
+    padding: 7px 8px;
+    border-bottom: 1px solid #e7e9ef;
+    font-size: 6px;
+    font-weight: 800;
+  }
+
+  .mini-field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+    padding: 7px;
+  }
+
+  .mini-field {
+    height: 17px;
+    border: 1px solid #d7dce6;
+    border-radius: 4px;
+    background: #f7f8fa;
+  }
+
+  .mini-row {
+    display: grid;
+    grid-template-columns: 1fr 0.7fr 18px;
+    gap: 4px;
+    padding: 6px 7px;
+    border-top: 1px solid #edf0f4;
+  }
+
+  .mini-node-map {
+    display: grid;
+    place-items: center;
+    min-height: 82px;
+    padding: 8px;
+    background-image: radial-gradient(#d7dbe5 0.7px, transparent 0.7px);
+    background-size: 8px 8px;
+  }
+
+  .mini-node-line {
+    display: grid;
+    grid-template-columns: 1fr 25px 1fr;
+    align-items: center;
+    width: 100%;
+  }
+
+  .mini-node {
+    padding: 7px 3px;
+    border: 1px solid #aeb5ca;
+    border-radius: 5px;
+    background: #fff;
+    color: #545c78;
+    font-size: 5px;
+    font-weight: 800;
+    text-align: center;
+  }
+
+  .mini-node.fact {
+    border-color: #7376aa;
+    background: #f2f1fb;
+    color: #505389;
+  }
+
+  .mini-link {
+    height: 1px;
+    background: #8e94ae;
+  }
+
+  .stacked-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 84px;
+    gap: 7px;
+    padding: 8px;
+  }
+
+  .stacked-main,
+  .stacked-aside,
+  .studio-editor,
+  .studio-inspector {
+    display: grid;
+    align-content: start;
+    gap: 6px;
+  }
+
+  .studio-body {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) 82px;
+    min-height: 279px;
+  }
+
+  .studio-rail {
+    padding: 8px 5px;
+    border-right: 1px solid #e0e4eb;
+    background: #fff;
+    color: #7b8295;
+    font-size: 5px;
+    line-height: 2.4;
+  }
+
+  .studio-rail strong {
+    display: block;
+    padding-left: 4px;
+    border-left: 2px solid #7475a8;
+    color: #505578;
+  }
+
+  .studio-editor {
+    padding: 8px;
+  }
+
+  .studio-inspector {
+    padding: 8px 7px;
+    border-left: 1px solid #e0e4eb;
+    background: #fff;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 2px;
+    padding: 6px 8px 0;
+    background: #fff;
+    border-bottom: 1px solid #e0e4eb;
+  }
+
+  .tab {
+    padding: 5px 6px;
+    color: #858b9d;
+    font-size: 5px;
+    font-weight: 700;
+  }
+
+  .tab.active {
+    border-bottom: 2px solid #7475a8;
+    color: #505578;
+  }
+
+  .tabbed-body {
+    display: grid;
+    grid-template-columns: 1fr 90px;
+    gap: 8px;
+    padding: 9px;
+  }
+
+  .mini-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 4px;
+    padding: 7px 10px;
+    border-top: 1px solid #e0e4eb;
+    background: #fff;
+  }
+
+  .mini-button {
+    padding: 4px 7px;
+    border: 1px solid #cdd2df;
+    border-radius: 4px;
+    color: #606780;
+    font-size: 5px;
+    font-weight: 800;
+  }
+
+  .mini-button.primary {
+    border-color: #65689a;
+    background: #65689a;
+    color: #fff;
+  }
+
+  .direction-copy {
+    padding: 14px 15px 16px;
+  }
+
+  .direction-copy h3 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 0 7px;
+    font-size: 15px;
+  }
+
+  .recommended {
+    padding: 3px 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    color: var(--accent);
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .direction-copy p {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  @media (max-width: 980px) {
+    .direction-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<h2>Choose the modeling workspace structure</h2>
+<p class="subtitle">All three retain the existing CreditModeler shell and support the full planned model shape. The difference is how much context remains visible while editing.</p>
+
+<div class="direction-grid">
+  <article class="direction-card" data-choice="guided-canvas" onclick="toggleSelect(this)">
+    <div class="mini-app">
+      <div class="mini-shell">
+        <div class="mini-topbar">RISK VIEWER / CREDITMODELER</div>
+        <div class="mini-workbench">
+          <aside class="mini-tree">Connections<strong>Data Models</strong>&nbsp;&nbsp;Portfolio Star<br>Variables<br>Policies</aside>
+          <main class="mini-canvas">
+            <div class="mini-header">
+              <div><div class="mini-kicker">Data model</div><p class="mini-title">Portfolio Star</p></div>
+              <span class="mini-status">Draft · 3 gaps</span>
+            </div>
+            <div class="stacked-body">
+              <div class="stacked-main">
+                <div class="mini-section"><div class="mini-section-head"><span>01 · Model details</span><span>Complete</span></div><div class="mini-field-grid"><div class="mini-field"></div><div class="mini-field"></div></div></div>
+                <div class="mini-section"><div class="mini-section-head"><span>02 · Sources</span><span>2 / 5</span></div><div class="mini-row"><div class="mini-field"></div><div class="mini-field"></div><div class="mini-field"></div></div></div>
+                <div class="mini-section"><div class="mini-section-head"><span>03 · Fact table</span><span>1 selected</span></div><div class="mini-field-grid"><div class="mini-field"></div><div class="mini-field"></div><div class="mini-field"></div><div class="mini-field"></div></div></div>
+                <div class="mini-section"><div class="mini-section-head"><span>04 · Dimensions</span><span>2 / 25</span></div><div class="mini-row"><div class="mini-field"></div><div class="mini-field"></div><div class="mini-field"></div></div></div>
+              </div>
+              <aside class="stacked-aside">
+                <div class="mini-section"><div class="mini-section-head"><span>Star map</span></div><div class="mini-node-map"><div class="mini-node-line"><div class="mini-node fact">fact_loans</div><div class="mini-link"></div><div class="mini-node">dim_customer</div></div></div></div>
+                <div class="mini-section"><div class="mini-section-head"><span>Diagnostics</span><span>3</span></div><div class="mini-row" style="grid-template-columns:1fr"><div class="mini-field"></div></div></div>
+              </aside>
+            </div>
+            <div class="mini-actions"><span class="mini-button">Test model</span><span class="mini-button primary">Save changes</span></div>
+          </main>
+        </div>
+      </div>
+    </div>
+    <div class="direction-copy">
+      <h3>Guided canvas <span class="recommended">Recommended</span></h3>
+      <p>Numbered, expandable editing sections with a sticky star map and diagnostics rail. Keeps the model understandable while scaling to many dimensions and rules.</p>
+    </div>
+  </article>
+
+  <article class="direction-card" data-choice="three-pane-studio" onclick="toggleSelect(this)">
+    <div class="mini-app">
+      <div class="mini-shell">
+        <div class="mini-topbar">RISK VIEWER / CREDITMODELER</div>
+        <div class="mini-workbench">
+          <aside class="mini-tree">Connections<strong>Data Models</strong>&nbsp;&nbsp;Portfolio Star<br>Variables<br>Policies</aside>
+          <main class="mini-canvas">
+            <div class="mini-header"><div><div class="mini-kicker">Data model</div><p class="mini-title">Portfolio Star</p></div><span class="mini-status">Draft</span></div>
+            <div class="studio-body">
+              <nav class="studio-rail">Overview<br>Sources<br>Fact<strong>Dimensions</strong>Relationships<br>Rules<br>Test</nav>
+              <div class="studio-editor">
+                <div class="mini-section"><div class="mini-section-head"><span>Dimensions</span><span>+ Add</span></div><div class="mini-row"><div class="mini-field"></div><div class="mini-field"></div><div class="mini-field"></div></div><div class="mini-row"><div class="mini-field"></div><div class="mini-field"></div><div class="mini-field"></div></div></div>
+                <div class="mini-section"><div class="mini-section-head"><span>Relationship keys</span><span>Left join</span></div><div class="mini-field-grid"><div class="mini-field"></div><div class="mini-field"></div><div class="mini-field"></div><div class="mini-field"></div></div></div>
+              </div>
+              <aside class="studio-inspector"><div class="mini-section"><div class="mini-section-head"><span>Inspector</span></div><div class="mini-node-map"><div class="mini-node-line"><div class="mini-node fact">fact</div><div class="mini-link"></div><div class="mini-node">dimension</div></div></div></div><div class="mini-section"><div class="mini-section-head"><span>3 gaps</span></div><div class="mini-row" style="grid-template-columns:1fr"><div class="mini-field"></div></div></div></aside>
+            </div>
+            <div class="mini-actions"><span class="mini-button">Test</span><span class="mini-button primary">Save</span></div>
+          </main>
+        </div>
+      </div>
+    </div>
+    <div class="direction-copy">
+      <h3>Three-pane studio</h3>
+      <p>A compact section rail, focused editor, and permanent inspector. Fast for expert users, but the nested navigation competes with the existing workbench tree on narrower screens.</p>
+    </div>
+  </article>
+
+  <article class="direction-card" data-choice="stage-tabs" onclick="toggleSelect(this)">
+    <div class="mini-app">
+      <div class="mini-shell">
+        <div class="mini-topbar">RISK VIEWER / CREDITMODELER</div>
+        <div class="mini-workbench">
+          <aside class="mini-tree">Connections<strong>Data Models</strong>&nbsp;&nbsp;Portfolio Star<br>Variables<br>Policies</aside>
+          <main class="mini-canvas">
+            <div class="mini-header"><div><div class="mini-kicker">Data model</div><p class="mini-title">Portfolio Star</p></div><span class="mini-status">Draft · 3 gaps</span></div>
+            <nav class="tabs"><span class="tab active">Define</span><span class="tab">Relate</span><span class="tab">Derive</span><span class="tab">Validate</span></nav>
+            <div class="tabbed-body">
+              <div class="studio-editor">
+                <div class="mini-section"><div class="mini-section-head"><span>Sources</span><span>2 / 5</span></div><div class="mini-row"><div class="mini-field"></div><div class="mini-field"></div><div class="mini-field"></div></div></div>
+                <div class="mini-section"><div class="mini-section-head"><span>Fact table</span><span>Complete</span></div><div class="mini-field-grid"><div class="mini-field"></div><div class="mini-field"></div><div class="mini-field"></div><div class="mini-field"></div></div></div>
+                <div class="mini-section"><div class="mini-section-head"><span>Dimensions</span><span>2 / 25</span></div><div class="mini-row"><div class="mini-field"></div><div class="mini-field"></div><div class="mini-field"></div></div></div>
+              </div>
+              <aside class="stacked-aside"><div class="mini-section"><div class="mini-section-head"><span>Stage health</span></div><div class="mini-node-map"><div class="mini-node fact">3 of 4 ready</div></div></div><div class="mini-section"><div class="mini-section-head"><span>Next</span></div><div class="mini-row" style="grid-template-columns:1fr"><div class="mini-field"></div></div></div></aside>
+            </div>
+            <div class="mini-actions"><span class="mini-button">Test model</span><span class="mini-button primary">Save changes</span></div>
+          </main>
+        </div>
+      </div>
+    </div>
+    <div class="direction-copy">
+      <h3>Stage tabs</h3>
+      <p>Groups the work into Define, Relate, Derive, and Validate stages. Visually calm, but hides cross-section dependencies and makes diagnostics feel separated from their source.</p>
+    </div>
+  </article>
+</div>

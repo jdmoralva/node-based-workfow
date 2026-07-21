@@ -13,7 +13,7 @@ from app.modules.data_models.rule_parser import validate_business_rules
 from app.modules.data_models.schema_inspection import inspect_connection_schema
 from app.modules.data_models.schemas import DataModelStatus, DataModelTestResponse, Diagnostic, ModelDefinition, SavedDataModelResponse, SavedDataModelsResponse, SavedDataModelSummary
 from app.modules.data_models.status import calculate_saved_status, mark_after_saved_edit
-from app.modules.data_models.validation import replace_connection_references, validate_model_definition
+from app.modules.data_models.validation import blocking_save_errors, replace_connection_references, validate_model_definition
 
 
 def normalize_data_model_name(name: str) -> str:
@@ -48,7 +48,8 @@ def get_owned_model_or_404(db: Session, *, model_id: str, user_id: str) -> Analy
 
 
 def list_saved_models(db: Session, *, user_id: str, status: DataModelStatus | None = None) -> SavedDataModelsResponse:
-    return SavedDataModelsResponse(items=[_summary(record) for record in repository.list_models_for_user(db, user_id=user_id, status=status)])
+    summaries = [_summary(record, db=db, user_id=user_id) for record in repository.list_models_for_user(db, user_id=user_id)]
+    return SavedDataModelsResponse(items=[item for item in summaries if status is None or item.test_status == status])
 
 
 def get_saved_model(db: Session, *, model_id: str, user_id: str) -> AnalyticalDataModel:
@@ -64,8 +65,9 @@ def create_saved_model(db: Session, *, user_id: str, name: str, description: str
     if repository.get_model_by_normalized_name(db, user_id=user_id, normalized_name=normalized_name) is not None:
         raise DuplicateDataModelNameError("A data model with this name already exists.")
     validation = validate_model_definition(model)
-    if validation.errors and model.fact_table is not None:
-        raise ValueError(validation.errors[0].message)
+    save_errors = blocking_save_errors(validation)
+    if save_errors:
+        raise ValueError(save_errors[0].message)
     record = AnalyticalDataModel(
         user_id=user_id,
         name=trimmed_name,
@@ -85,11 +87,15 @@ def update_saved_model(db: Session, *, model_id: str, user_id: str, name: str, d
     if _validate_name(name).casefold() != record.name.casefold():
         raise ImmutableDataModelNameError("Data model names cannot be changed.")
     validation = validate_model_definition(model)
-    if validation.errors and model.fact_table is not None:
-        raise ValueError(validation.errors[0].message)
+    save_errors = blocking_save_errors(validation)
+    if save_errors:
+        raise ValueError(save_errors[0].message)
+    model_json = model.model_dump(mode="json")
+    if record.description == description and record.model_json == model_json:
+        return record
     previous_status = cast(DataModelStatus, record.test_status)
     record.description = description
-    record.model_json = model.model_dump(mode="json")
+    record.model_json = model_json
     record.test_status = mark_after_saved_edit(previous_status=previous_status, model=model)
     if record.last_test_errors_json or record.last_test_warnings_json:
         record.diagnostics_stale = True
@@ -116,15 +122,15 @@ def test_saved_model(db: Session, *, model_id: str, user_id: str, datasets_root:
     record.last_test_errors_json = [item.model_dump(mode="json") for item in result.errors]
     record.last_test_warnings_json = [item.model_dump(mode="json") for item in result.warnings]
     record.diagnostics_stale = False
+    persisted_status: DataModelStatus = "tested" if result.succeeded else "failed"
     if result.succeeded:
-        record.test_status = "tested"
         record.last_test_succeeded_at = now
     else:
-        record.test_status = "failed"
         record.last_test_failed_at = now
+    record.test_status = persisted_status
     db.commit()
     db.refresh(record)
-    return result
+    return result.model_copy(update={"status": persisted_status})
 
 
 def replace_model_connection(db: Session, *, model_id: str, user_id: str, old_connection_id: str, new_connection_id: str) -> AnalyticalDataModel:
@@ -146,7 +152,7 @@ def saved_model_response(record: AnalyticalDataModel, *, db: Session | None = No
     if db is not None and user_id is not None:
         errors = [*_missing_connection_diagnostics(db, user_id=user_id, model=_model_from_record(record)), *errors]
     return SavedDataModelResponse(
-        **_summary(record).model_dump(),
+        **_summary(record, db=db, user_id=user_id).model_dump(),
         model=_model_from_record(record),
         last_test_errors=errors,
         last_test_warnings=[Diagnostic.model_validate(item) for item in (record.last_test_warnings_json or [])],
@@ -168,8 +174,9 @@ def test_unsaved_model(db: Session, *, user_id: str, model: ModelDefinition, dat
     if missing_connection_errors:
         return DataModelTestResponse(succeeded=False, status="failed", errors=missing_connection_errors, warnings=[])
     validation = validate_model_definition(model)
-    rule_errors = validate_business_rules(model.business_rules, table_columns=_collect_known_columns(db, user_id=user_id, model=model, datasets_root=datasets_root)).errors
-    errors = [*validation.errors, *rule_errors]
+    known_columns, schema_errors = _collect_schema_context(db, user_id=user_id, model=model, datasets_root=datasets_root)
+    rule_errors = validate_business_rules(model.business_rules, table_columns=known_columns).errors
+    errors = [*validation.errors, *schema_errors, *rule_errors]
     warnings = validation.warnings
     if errors:
         return DataModelTestResponse(succeeded=False, status=calculate_saved_status(model), errors=errors, warnings=warnings)
@@ -188,24 +195,101 @@ def test_unsaved_model(db: Session, *, user_id: str, model: ModelDefinition, dat
 setattr(test_unsaved_model, "__test__", False)
 
 
-def _collect_known_columns(db: Session, *, user_id: str, model: ModelDefinition, datasets_root: Path) -> dict[str, set[str]]:
+def _collect_schema_context(
+    db: Session,
+    *,
+    user_id: str,
+    model: ModelDefinition,
+    datasets_root: Path,
+) -> tuple[dict[str, set[str]], list[Diagnostic]]:
     known: dict[str, set[str]] = {}
-    table_refs = []
-    if model.fact_table is not None:
-        table_refs.append((model.fact_table.alias, model.fact_table.connection_id, model.fact_table.table))
-    table_refs.extend((dimension.alias, dimension.connection_id, dimension.table) for dimension in model.dimensions)
-    for alias, connection_id, table_name in table_refs:
+    errors: list[Diagnostic] = []
+    schema_by_connection: dict[str, Any] = {}
+    connection_ids = _referenced_connection_ids(model)
+    for connection_id in dict.fromkeys(connection_ids):
         connection = connection_repository.get_connection_for_user(db, connection_id=connection_id, user_id=user_id)
         if connection is None:
             continue
         try:
-            schema = inspect_connection_schema(connection, datasets_root=datasets_root)
+            schema_by_connection[connection_id] = inspect_connection_schema(connection, datasets_root=datasets_root)
         except ValueError:
+            errors.append(
+                diagnostics.error(
+                    "schema_unavailable",
+                    "Schema metadata could not be loaded for a referenced Connection.",
+                    section="sources",
+                    connection_id=connection_id,
+                )
+            )
+
+    fact_columns: set[str] | None = None
+    if model.fact_table is not None:
+        schema = schema_by_connection.get(model.fact_table.connection_id)
+        schema_object = next((item for item in schema.objects if item.name == model.fact_table.table), None) if schema is not None else None
+        if schema is not None and schema_object is None:
+            errors.append(diagnostics.error("unknown_fact_object", "The selected fact table or view is unavailable.", section="fact_table"))
+        elif schema_object is not None:
+            fact_columns = {column.name for column in schema_object.columns}
+            known[model.fact_table.alias] = fact_columns
+            if schema_object.object_type != model.fact_table.object_type:
+                errors.append(diagnostics.error("fact_object_type_changed", "The selected fact object type has changed.", section="fact_table"))
+            if any(column not in fact_columns for column in model.fact_table.primary_key):
+                errors.append(diagnostics.error("unknown_fact_primary_key", "A selected fact primary-key column is unavailable.", section="fact_table"))
+
+    dimension_columns: dict[str, set[str]] = {}
+    dimensions_by_id = {dimension.id: dimension for dimension in model.dimensions}
+    for dimension in model.dimensions:
+        schema = schema_by_connection.get(dimension.connection_id)
+        schema_object = next((item for item in schema.objects if item.name == dimension.table), None) if schema is not None else None
+        if schema is not None and schema_object is None:
+            errors.append(
+                diagnostics.error("unknown_dimension_object", "A selected dimension table or view is unavailable.", section="dimensions", id=dimension.id)
+            )
             continue
-        schema_object = next((item for item in schema.objects if item.name == table_name), None)
-        if schema_object is not None:
-            known[alias] = {column.name for column in schema_object.columns}
-    return known
+        if schema_object is None:
+            continue
+        columns = {column.name for column in schema_object.columns}
+        known[dimension.alias] = columns
+        dimension_columns[dimension.id] = columns
+        if schema_object.object_type != dimension.object_type:
+            errors.append(
+                diagnostics.error("dimension_object_type_changed", "A selected dimension object type has changed.", section="dimensions", id=dimension.id)
+            )
+        if any(column not in columns for column in dimension.primary_key):
+            errors.append(
+                diagnostics.error(
+                    "unknown_dimension_primary_key",
+                    "A selected dimension primary-key column is unavailable.",
+                    section="dimensions",
+                    id=dimension.id,
+                )
+            )
+
+    for relationship in model.relationships:
+        dimension = dimensions_by_id.get(relationship.dimension_id)
+        if dimension is None:
+            continue
+        columns = dimension_columns.get(dimension.id)
+        for pair in relationship.key_pairs:
+            if fact_columns is not None and pair.fact_column not in fact_columns:
+                errors.append(
+                    diagnostics.error(
+                        "unknown_relationship_fact_column",
+                        "A selected relationship fact column is unavailable.",
+                        section="relationships",
+                        id=relationship.id,
+                    )
+                )
+            if columns is not None and pair.dimension_column not in columns:
+                errors.append(
+                    diagnostics.error(
+                        "unknown_relationship_dimension_column",
+                        "A selected relationship dimension column is unavailable.",
+                        section="relationships",
+                        id=relationship.id,
+                    )
+                )
+    return known, errors
 
 
 def _missing_connection_diagnostics(db: Session, *, user_id: str, model: ModelDefinition) -> list[Diagnostic]:
@@ -240,8 +324,19 @@ def _model_from_record(record: AnalyticalDataModel) -> ModelDefinition:
     return ModelDefinition.model_validate(record.model_json)
 
 
-def _summary(record: AnalyticalDataModel) -> SavedDataModelSummary:
-    return SavedDataModelSummary.model_validate(record)
+def _summary(
+    record: AnalyticalDataModel,
+    *,
+    db: Session | None = None,
+    user_id: str | None = None,
+) -> SavedDataModelSummary:
+    summary = SavedDataModelSummary.model_validate(record)
+    if db is None or user_id is None:
+        return summary
+    model = _model_from_record(record)
+    if summary.test_status != "failed" and _missing_connection_diagnostics(db, user_id=user_id, model=model):
+        return summary.model_copy(update={"test_status": calculate_saved_status(model, stale=True)})
+    return summary
 
 
 def _mark_stale(items: list[dict[str, Any]]) -> list[dict[str, Any]]:

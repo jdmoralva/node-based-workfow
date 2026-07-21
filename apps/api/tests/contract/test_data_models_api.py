@@ -126,8 +126,23 @@ def test_unsaved_test_returns_structured_draft_errors(authenticated_client: Test
     body = response.json()
     assert body["succeeded"] is False
     assert body["status"] == "draft"
-    assert body["errors"][0]["code"] == "missing_fact_table"
+    assert {item["code"] for item in body["errors"]} >= {"missing_sources", "missing_fact_table"}
     assert body["warnings"][0]["code"] == "compile_only"
+
+
+def test_unsaved_test_requires_fact_and_dimension_connections_in_sources(authenticated_client: TestClient) -> None:
+    datasets_root = authenticated_client.app.state.settings.resolved_datasets_root
+    create_portfolio_database(datasets_root / "portfolio.db")
+    connection = save_connection(authenticated_client, "Portfolio", "portfolio.db")
+    model = complete_model(connection["id"])
+    model["sources"] = []
+
+    response = authenticated_client.post("/api/data-models/test", json={"model": model})
+
+    assert response.status_code == 200
+    assert response.json()["succeeded"] is False
+    assert response.json()["status"] == "draft"
+    assert response.json()["errors"][0]["code"] == "missing_sources"
 
 
 def test_unsaved_test_compiles_complete_model_without_exposing_sql(authenticated_client: TestClient) -> None:
@@ -145,6 +160,25 @@ def test_unsaved_test_compiles_complete_model_without_exposing_sql(authenticated
     assert [warning["code"] for warning in body["warnings"]] == ["compile_only"]
     assert "select" not in str(body).lower()
     assert "portfolio.db" not in str(body)
+
+
+def test_unsaved_test_returns_actionable_schema_reference_errors(authenticated_client: TestClient) -> None:
+    datasets_root = authenticated_client.app.state.settings.resolved_datasets_root
+    create_portfolio_database(datasets_root / "portfolio.db")
+    connection = save_connection(authenticated_client, "Portfolio", "portfolio.db")
+    model = complete_model(connection["id"])
+    model["dimensions"][0]["primary_key"] = ["missing_customer_key"]
+    model["relationships"][0]["key_pairs"] = [{"fact_column": "missing_fact_key", "dimension_column": "missing_dimension_key"}]
+
+    response = authenticated_client.post("/api/data-models/test", json={"model": model})
+
+    assert response.status_code == 200
+    assert response.json()["succeeded"] is False
+    assert {item["code"] for item in response.json()["errors"]} >= {
+        "unknown_dimension_primary_key",
+        "unknown_relationship_fact_column",
+        "unknown_relationship_dimension_column",
+    }
 
 
 def test_saved_data_model_crud_list_filter_and_saved_test(authenticated_client: TestClient) -> None:
@@ -196,6 +230,67 @@ def test_saved_data_model_crud_list_filter_and_saved_test(authenticated_client: 
     delete_response = authenticated_client.delete(f"/api/data-models/{saved['id']}")
     assert delete_response.status_code == 204
     assert authenticated_client.get(f"/api/data-models/{saved['id']}").status_code == 404
+
+
+def test_saves_a_partially_configured_relationship_as_a_draft(authenticated_client: TestClient) -> None:
+    model = {
+        "sources": [{"connection_id": "conn_pending", "alias": "portfolio", "metadata": {}}],
+        "fact_table": {
+            "connection_id": "conn_pending",
+            "table": "loans",
+            "object_type": "table",
+            "alias": "fact_loans",
+            "grain": None,
+            "primary_key": ["account_id"],
+            "metadata": {},
+        },
+        "dimensions": [
+            {
+                "id": "dim_customer",
+                "connection_id": "conn_pending",
+                "table": "customers",
+                "object_type": "table",
+                "alias": "dim_customer",
+                "primary_key": ["customer_id"],
+                "metadata": {},
+            }
+        ],
+        "relationships": [{"id": "rel_customer", "dimension_id": "dim_customer", "join_type": "left", "key_pairs": [], "metadata": {}}],
+        "business_rules": [],
+        "measures": [],
+        "metadata": {},
+    }
+
+    response = authenticated_client.post("/api/data-models", json={"name": "Relationship Draft", "model": model})
+
+    assert response.status_code == 201
+    assert response.json()["test_status"] == "draft"
+    assert response.json()["model"]["relationships"][0]["key_pairs"] == []
+
+
+def test_failed_saved_test_returns_the_persisted_failed_status(authenticated_client: TestClient) -> None:
+    create_response = authenticated_client.post("/api/data-models", json={"name": "Incomplete Draft"})
+    model_id = create_response.json()["id"]
+
+    test_response = authenticated_client.post(f"/api/data-models/{model_id}/test")
+    read_response = authenticated_client.get(f"/api/data-models/{model_id}")
+
+    assert test_response.status_code == 200
+    assert test_response.json()["succeeded"] is False
+    assert test_response.json()["status"] == "failed"
+    assert read_response.json()["test_status"] == "failed"
+
+
+def test_rejects_hard_validation_errors_even_without_a_fact_table(authenticated_client: TestClient) -> None:
+    sources = [{"connection_id": f"conn_{index}", "alias": f"source_{index}", "metadata": {}} for index in range(6)]
+
+    response = authenticated_client.post(
+        "/api/data-models",
+        json={"name": "Too Many Sources", "model": {"sources": sources, "fact_table": None, "dimensions": [], "relationships": [], "business_rules": [], "measures": [], "metadata": {}}},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "A data model can reference at most 5 sources."
 
 
 def test_saved_data_model_rejects_duplicate_and_renamed_models(authenticated_client: TestClient) -> None:

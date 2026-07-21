@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Workbench } from "@/components/workbench/Workbench";
 import { creditModelerTreeMenu, type TreeMenuDefinition } from "@/config/tree-menu";
@@ -66,6 +66,7 @@ export function CreditModelerWorkbench() {
   const [dataModels, setDataModels] = useState<SavedDataModelSummary[]>([]);
   const [selectionRevision, setSelectionRevision] = useState(0);
   const [selectedTreeKey, setSelectedTreeKey] = useState<string | null>(null);
+  const droppedDataModelIds = useRef(new Set<string>());
 
   useEffect(() => {
     let active = true;
@@ -90,7 +91,10 @@ export function CreditModelerWorkbench() {
     listDataModels()
       .then((response) => {
         if (active) {
-          setDataModels(response.items);
+          setDataModels((current) => current.reduce(
+            (items, model) => upsertDataModel(items, model),
+            response.items.filter((model) => !droppedDataModelIds.current.has(model.id))
+          ));
         }
       })
       .catch(() => {
@@ -118,17 +122,18 @@ export function CreditModelerWorkbench() {
     setSelectionRevision((current) => current + 1);
   };
   const handleDataModelSaved = (model: SavedDataModel) => {
+    droppedDataModelIds.current.delete(model.id);
     setDataModels((current) => upsertDataModel(current, model));
-    setSelectedTreeKey(`Data Models/${model.name}`);
   };
   const handleDataModelDropped = (modelId: string) => {
+    droppedDataModelIds.current.add(modelId);
     setDataModels((current) => current.filter((model) => model.id !== modelId));
     setSelectedTreeKey(null);
   };
   const canvasContent = selectedTreeKey === "Connections" ? (
     <ConnectionBuilder key={`new-connection-${selectionRevision}`} onConnectionSaved={handleConnectionSaved} />
   ) : selectedTreeKey === "Data Models" ? (
-    <DataModelBuilder key={`new-data-model-${selectionRevision}`} onDataModelSaved={handleDataModelSaved} />
+    <DataModelBuilder key={`new-data-model-${selectionRevision}`} onDataModelDropped={handleDataModelDropped} onDataModelSaved={handleDataModelSaved} />
   ) : selectedDataModel ? (
     <DataModelBuilder key={`${selectedDataModel.id}-${selectionRevision}`} modelId={selectedDataModel.id} onDataModelDropped={handleDataModelDropped} onDataModelSaved={handleDataModelSaved} />
   ) : selectedConnection ? (

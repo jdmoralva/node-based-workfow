@@ -158,6 +158,17 @@ def test_saved_models_enforce_unique_names_and_status_transitions(db_session, da
     assert saved.last_tested_at is not None
     assert saved.last_test_succeeded_at is not None
 
+    unchanged = service.update_saved_model(
+        db_session,
+        model_id=draft.id,
+        user_id=data_model_user.id,
+        name="Portfolio Star",
+        description="Complete",
+        model=complete_definition(sqlite_connection.id),
+    )
+    assert unchanged.test_status == "tested"
+    assert unchanged.diagnostics_stale is False
+
     edited = service.update_saved_model(
         db_session,
         model_id=draft.id,
@@ -196,6 +207,7 @@ def test_saved_model_read_and_test_return_missing_connection_diagnostics(db_sess
     result = service.test_saved_model(db_session, model_id=saved.id, user_id=data_model_user.id, datasets_root=datasets_root)
 
     assert response.last_test_errors[0].code == "missing_connection"
+    assert response.test_status == "stale"
     assert "referenced Connection is missing" in response.last_test_errors[0].message
     assert result.succeeded is False
     assert result.errors[0].code == "missing_connection"

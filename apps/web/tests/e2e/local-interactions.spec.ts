@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
 
+import type { DataModelCreatePayload, SavedDataModel } from "@/features/creditmodeler/data-model-types";
+
 import { createAuthenticatedStorageState } from "../helpers/auth-session";
 import { waitForStablePage } from "../helpers/wait-for-stable-page";
 
@@ -20,7 +22,7 @@ test.describe("local login and shell interactions", () => {
   });
 
   test("disables the sign-in action while the authentication request is in flight", async ({ page }) => {
-    let releaseLoginRequest: (() => void) | null = null;
+    let releaseLoginRequest: () => void = () => undefined;
 
     await page.route("**/api/auth/login", async (route) => {
       await new Promise<void>((resolve) => {
@@ -42,7 +44,7 @@ test.describe("local login and shell interactions", () => {
 
     await expect(page.getByRole("button", { name: "Sign In" })).toBeDisabled();
 
-    releaseLoginRequest?.();
+    releaseLoginRequest();
     await expect(page.getByRole("button", { name: "Sign In" })).toBeEnabled();
   });
 
@@ -242,7 +244,7 @@ test.describe("local login and shell interactions", () => {
     const storageState = await createAuthenticatedStorageState(request);
     await page.context().addCookies(storageState.cookies);
 
-    let dataModel = {
+    let dataModel: SavedDataModel = {
       id: "model_1",
       name: "Portfolio Star",
       description: "",
@@ -257,10 +259,67 @@ test.describe("local login and shell interactions", () => {
       created_at: "2026-07-18T10:00:00Z",
       updated_at: "2026-07-18T10:00:00Z"
     };
-    let models = [] as typeof dataModel[];
+    let models: SavedDataModel[] = [];
 
     await page.route("**/api/connections", async (route) => {
-      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ connections: [] }) });
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          connections: [
+            {
+              id: "conn_1",
+              label: "Portfolio",
+              driver: "sqlite",
+              database_path: "portfolio.db",
+              created_at: "2026-07-18T10:00:00Z",
+              updated_at: "2026-07-18T10:00:00Z",
+              last_tested_at: null
+            }
+          ]
+        })
+      });
+    });
+    await page.route("**/api/data-models/connections/conn_1/schema", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          connection_id: "conn_1",
+          connection_label: "Portfolio",
+          objects: [
+            {
+              name: "loans",
+              object_type: "table",
+              columns: [
+                { name: "account_id", declared_type: "TEXT", nullable: false, primary_key: true },
+                { name: "customer_id", declared_type: "TEXT", nullable: false, primary_key: false }
+              ]
+            },
+            {
+              name: "customers",
+              object_type: "table",
+              columns: [{ name: "customer_id", declared_type: "TEXT", nullable: false, primary_key: true }]
+            }
+          ]
+        })
+      });
+    });
+    await page.route("**/api/data-models/test", async (route) => {
+      const payload = route.request().postDataJSON() as { model: SavedDataModel["model"] };
+      expect(payload.model.fact_table?.table).toBe("loans");
+      expect(payload.model.dimensions[0]?.table).toBe("customers");
+      expect(payload.model.relationships[0]?.key_pairs).toEqual([{ fact_column: "customer_id", dimension_column: "customer_id" }]);
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          succeeded: true,
+          status: "tested",
+          errors: [],
+          warnings: [{ severity: "warning", code: "compile_only", message: "Compilation only.", location: null, stale: false }]
+        })
+      });
     });
     await page.route("**/api/data-models", async (route) => {
       const requestMethod = route.request().method();
@@ -269,6 +328,14 @@ test.describe("local login and shell interactions", () => {
         return;
       }
       if (requestMethod === "POST") {
+        const payload = route.request().postDataJSON() as DataModelCreatePayload;
+        dataModel = {
+          ...dataModel,
+          name: payload.name,
+          description: payload.description ?? null,
+          model: payload.model ?? dataModel.model,
+          test_status: "untested"
+        };
         models = [dataModel];
         await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(dataModel) });
         return;
@@ -305,13 +372,25 @@ test.describe("local login and shell interactions", () => {
 
     await page.getByRole("button", { name: "Data Models", exact: true }).click();
     await page.getByLabel("Data model name").fill("Portfolio Star");
+    await page.getByLabel("New source connection").selectOption("conn_1");
+    await page.getByRole("button", { name: "Add source connection" }).click();
+    await page.getByLabel("Fact source connection").selectOption("conn_1");
+    await page.getByLabel("Fact table or view").selectOption("loans");
+    await page.getByRole("button", { name: "Add dimension" }).click();
+    await page.getByLabel("Dimension 1 table or view").selectOption("customers");
+    await page.getByRole("button", { name: "Add key pair for dim_customers" }).click();
+    await page.getByLabel("Relationship 1 fact column 1").selectOption("customer_id");
+    await page.getByLabel("Relationship 1 dimension column 1").selectOption("customer_id");
+
+    await page.getByRole("button", { name: "Test model" }).click();
+    await expect(page.getByText("Draft test passed. Save and retest to persist the tested status.")).toBeVisible({ timeout: 2000 });
+
     await page.getByRole("button", { name: "Save Draft" }).click();
     await expect(page.getByRole("button", { name: "Portfolio Star" })).toBeVisible({ timeout: 2000 });
-
-    await page.getByRole("button", { name: "Portfolio Star" }).click();
     await expect(page.getByLabel("Data model name")).toHaveAttribute("readonly", "");
+    await expect(page.getByText("Data model saved.")).toBeVisible();
 
-    await page.getByRole("button", { name: "Test" }).click();
+    await page.getByRole("button", { name: "Test model" }).click();
     await expect(page.getByText("Data model test succeeded.")).toBeVisible({ timeout: 2000 });
 
     await page.getByLabel("Description").fill("Edited");
@@ -387,7 +466,7 @@ test.describe("local login and shell interactions", () => {
     await expect(page.getByText("fact_loans", { exact: true })).toBeVisible();
     await expect(page.getByText("dim_customers", { exact: true })).toBeVisible();
 
-    await page.getByRole("button", { name: "Test" }).click();
+    await page.getByRole("button", { name: "Test model" }).click();
     await expect(page.getByText("Data model test succeeded.")).toBeVisible({ timeout: 2000 });
   });
 });

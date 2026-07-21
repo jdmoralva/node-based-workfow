@@ -3,7 +3,7 @@ from pydantic import ValidationError
 from app.db.base import Base
 from app.modules.data_models import diagnostics, repository, status
 from app.modules.data_models.models import AnalyticalDataModel
-from app.modules.data_models.schemas import DataModelCreateRequest, ModelDefinition
+from app.modules.data_models.schemas import DataModelCreateRequest, FactTableDefinition, ModelDefinition, SourceConnectionReference
 
 
 def test_analytical_data_model_metadata_matches_foundational_contract() -> None:
@@ -39,7 +39,14 @@ def test_diagnostics_and_status_helpers_are_safe_and_deterministic() -> None:
     assert diagnostic.location == {"section": "fact_table"}
     assert diagnostics.safe_error_message(ValueError("near SELECT * FROM C:/secret/portfolio.db")) == "Data model operation failed."
     assert status.calculate_saved_status(ModelDefinition()) == "draft"
-    assert status.calculate_saved_status(ModelDefinition(fact_table={"connection_id": "conn_1", "table": "loans", "object_type": "table", "alias": "f"})) == "untested"
+    assert status.calculate_saved_status(
+        ModelDefinition(
+            sources=[SourceConnectionReference(connection_id="conn_1", alias="source")],
+            fact_table=FactTableDefinition(
+                connection_id="conn_1", table="loans", object_type="table", alias="f", primary_key=["account_id"]
+            )
+        )
+    ) == "untested"
     assert status.mark_after_saved_edit(previous_status="tested", model=ModelDefinition()) == "draft"
 
 

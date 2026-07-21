@@ -1,8 +1,9 @@
 from app.modules.data_models.schemas import DataModelStatus, ModelDefinition
+from app.modules.data_models.validation import DRAFT_GAP_CODES, validate_model_definition
 
 
 def is_structurally_complete(model: ModelDefinition) -> bool:
-    return model.fact_table is not None
+    return not any(item.code in DRAFT_GAP_CODES for item in validate_model_definition(model).errors)
 
 
 def calculate_saved_status(model: ModelDefinition, *, tested: bool = False, failed: bool = False, stale: bool = False) -> DataModelStatus:

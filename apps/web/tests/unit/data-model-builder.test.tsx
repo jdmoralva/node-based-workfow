@@ -147,7 +147,7 @@ describe("DataModelBuilder", () => {
     expect(screen.getByLabelText("Data model name")).toHaveValue("");
     expect(await screen.findByRole("option", { name: "Portfolio" })).toHaveValue("conn_1");
 
-    await user.click(screen.getByRole("button", { name: "Test" }));
+    await user.click(screen.getByRole("button", { name: "Test model" }));
 
     expect(mockedTestUnsavedDataModel).toHaveBeenCalledWith(
       expect.objectContaining({ model: expect.objectContaining({ fact_table: null }) })
@@ -155,14 +155,39 @@ describe("DataModelBuilder", () => {
     expect(await screen.findByText("Select one fact table before testing this model.")).toBeInTheDocument();
   });
 
-  it("loads schema metadata when a source is selected", async () => {
+  it("loads schema metadata but waits for an explicit table selection", async () => {
     const user = userEvent.setup();
     render(<DataModelBuilder />);
 
-    await user.selectOptions(await screen.findByLabelText("Source connection"), "conn_1");
+    await user.selectOptions(await screen.findByLabelText("New source connection"), "conn_1");
+    await user.click(screen.getByRole("button", { name: "Add source connection" }));
+    await user.selectOptions(screen.getByLabelText("Fact source connection"), "conn_1");
 
-    await waitFor(() => expect(screen.getByLabelText("Fact table")).toHaveValue("loans"));
+    expect(await screen.findByRole("option", { name: "loans · table" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Fact table or view")).toHaveValue("");
     expect(mockedInspectConnectionSchema).toHaveBeenCalledWith("conn_1");
+  });
+
+  it("retries schema metadata after a transient failure", async () => {
+    const user = userEvent.setup();
+    mockedInspectConnectionSchema.mockRejectedValueOnce(new Error("Connection database is not available for data modeling.")).mockResolvedValueOnce({
+      connection_id: "conn_1",
+      connection_label: "Portfolio",
+      objects: [{ name: "loans", object_type: "table", columns: [] }]
+    });
+    render(<DataModelBuilder />);
+
+    await user.selectOptions(await screen.findByLabelText("New source connection"), "conn_1");
+    await user.click(screen.getByRole("button", { name: "Add source connection" }));
+    expect(await screen.findByText("Connection database is not available for data modeling.")).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Fact source connection"), "conn_1");
+    expect(screen.getByLabelText("Fact table or view")).toBeDisabled();
+    expect(screen.getByRole("option", { name: "Schema unavailable" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Retry fact schema for Portfolio" }));
+
+    await waitFor(() => expect(mockedInspectConnectionSchema).toHaveBeenCalledTimes(2));
+    expect(await screen.findByRole("option", { name: "loans · table" })).toBeInTheDocument();
   });
 
   it("sends configured fact, dimension, relationship, and business rule for testing", async () => {
@@ -176,11 +201,18 @@ describe("DataModelBuilder", () => {
     render(<DataModelBuilder />);
 
     await user.type(screen.getByLabelText("Data model name"), "Portfolio Star");
-    await user.selectOptions(await screen.findByLabelText("Source connection"), "conn_1");
-    await user.selectOptions(await screen.findByLabelText("Fact table"), "loans");
-    await user.selectOptions(screen.getByLabelText("Dimension table"), "customers");
-    await user.type(screen.getByLabelText("Business rule expression"), "upper(dim_customers.customer_id)");
-    await user.click(screen.getByRole("button", { name: "Test" }));
+    await user.selectOptions(await screen.findByLabelText("New source connection"), "conn_1");
+    await user.click(screen.getByRole("button", { name: "Add source connection" }));
+    await user.selectOptions(screen.getByLabelText("Fact source connection"), "conn_1");
+    await user.selectOptions(screen.getByLabelText("Fact table or view"), "loans");
+    await user.click(screen.getByRole("button", { name: "Add dimension" }));
+    await user.selectOptions(screen.getByLabelText("Dimension 1 table or view"), "customers");
+    await user.click(screen.getByRole("button", { name: "Add key pair for dim_customers" }));
+    await user.selectOptions(screen.getByLabelText("Relationship 1 fact column 1"), "customer_id");
+    await user.selectOptions(screen.getByLabelText("Relationship 1 dimension column 1"), "customer_id");
+    await user.click(screen.getByRole("button", { name: "Add business rule" }));
+    await user.type(screen.getByLabelText("Business rule 1 expression"), "upper(dim_customers.customer_id)");
+    await user.click(screen.getByRole("button", { name: "Test model" }));
 
     await waitFor(() =>
       expect(mockedTestUnsavedDataModel).toHaveBeenLastCalledWith(
@@ -196,6 +228,20 @@ describe("DataModelBuilder", () => {
     );
     expect(await screen.findByText("Data model test succeeded.")).toBeInTheDocument();
     expect(screen.getByText("Compilation only.")).toBeInTheDocument();
+  });
+
+  it("invalidates draft-only test results after the visible definition changes", async () => {
+    const user = userEvent.setup();
+    render(<DataModelBuilder />);
+
+    await user.click(screen.getByRole("button", { name: "Test model" }));
+    expect(await screen.findByText(/Draft test results are not persisted/)).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("New source connection"), "conn_1");
+    await user.click(screen.getByRole("button", { name: "Add source connection" }));
+
+    expect(screen.queryByText(/Draft test results are not persisted/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Select one fact table before testing this model.")).not.toBeInTheDocument();
   });
 
   it("saves a draft and reports stale diagnostics after updating an existing model", async () => {
@@ -222,13 +268,33 @@ describe("DataModelBuilder", () => {
     expect(await screen.findByText("Diagnostics are stale after the latest save."));
   });
 
+  it("preserves edits made while a save request is pending", async () => {
+    const user = userEvent.setup();
+    let resolveCreate: ((model: typeof savedModel) => void) | undefined;
+    mockedCreateDataModel.mockImplementation(
+      () => new Promise((resolve) => {
+        resolveCreate = resolve;
+      })
+    );
+    render(<DataModelBuilder />);
+
+    await user.type(screen.getByLabelText("Data model name"), "Portfolio Star");
+    await user.click(screen.getByRole("button", { name: "Save Draft" }));
+    expect(screen.getByLabelText("Data model name")).toHaveAttribute("readonly");
+    await user.type(screen.getByLabelText("Description"), "Added while saving");
+    resolveCreate?.(savedModel);
+
+    expect(await screen.findByText("Data model saved. Newer edits remain unsaved.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Description")).toHaveValue("Added while saving");
+  });
+
   it("tests and drops a saved model after confirmation", async () => {
     const user = userEvent.setup();
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
     render(<DataModelBuilder modelId="model_1" />);
 
     expect(await screen.findByRole("heading", { name: "Portfolio Star" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Test" }));
+    await user.click(screen.getByRole("button", { name: "Test model" }));
     expect(mockedTestSavedDataModel).toHaveBeenCalledWith("model_1");
     expect(await screen.findByText("Data model test succeeded."));
 
@@ -259,7 +325,7 @@ describe("DataModelBuilder", () => {
     render(<DataModelBuilder modelId="model_1" />);
 
     expect(await screen.findByText("A referenced Connection is missing. Select a replacement source to repair this model.")).toBeInTheDocument();
-    expect(screen.getByText("Replace the missing source to keep table names, aliases, relationships, and business rules where possible.")).toBeInTheDocument();
+    expect(screen.getByText("Choose a replacement to preserve tables, aliases, relationships, and rules where possible.")).toBeInTheDocument();
     await user.selectOptions(await screen.findByLabelText("Replacement connection"), "conn_1");
     await user.click(screen.getByRole("button", { name: "Repair Source" }));
 
@@ -277,14 +343,277 @@ describe("DataModelBuilder", () => {
     );
     expect(await screen.findByText("Source repaired. Review preserved configuration before retesting.")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Test" }));
+    await user.click(screen.getByRole("button", { name: "Test model" }));
     expect(mockedTestSavedDataModel).toHaveBeenCalledWith("model_1");
+  });
+
+  it("preserves edits made while a source repair is pending", async () => {
+    const user = userEvent.setup();
+    let resolveRepair: ((model: typeof savedModel) => void) | undefined;
+    mockedGetDataModel.mockResolvedValue({
+      ...savedModel,
+      model: configuredModel,
+      last_test_errors: [{ severity: "error", code: "missing_connection", message: "Missing source.", location: { section: "sources", connection_id: "conn_missing" }, stale: false }]
+    });
+    mockedUpdateDataModel.mockImplementation(
+      () => new Promise((resolve) => {
+        resolveRepair = resolve;
+      })
+    );
+    render(<DataModelBuilder modelId="model_1" />);
+
+    await user.selectOptions(await screen.findByLabelText("Replacement connection"), "conn_1");
+    await user.click(screen.getByRole("button", { name: "Repair Source" }));
+    await user.clear(screen.getByLabelText("Description"));
+    await user.type(screen.getByLabelText("Description"), "Edited during repair");
+    resolveRepair?.({
+      ...savedModel,
+      model: replaceConfiguredConnection(configuredModel, "conn_1"),
+      last_test_errors: []
+    });
+
+    expect(await screen.findByText("Source repaired. Newer edits remain unsaved; review the preserved configuration before retesting.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Description")).toHaveValue("Edited during repair");
+  });
+
+  it("builds a multi-source model with repeated editors and composite relationship keys", async () => {
+    const user = userEvent.setup();
+    mockedListConnections.mockResolvedValue({
+      connections: [
+        {
+          id: "conn_1",
+          label: "Portfolio",
+          driver: "sqlite",
+          database_path: "portfolio.db",
+          created_at: "2026-07-18T10:00:00Z",
+          updated_at: "2026-07-18T10:00:00Z",
+          last_tested_at: null
+        },
+        {
+          id: "conn_2",
+          label: "Customer Master",
+          driver: "sqlite",
+          database_path: "customers.db",
+          created_at: "2026-07-18T10:00:00Z",
+          updated_at: "2026-07-18T10:00:00Z",
+          last_tested_at: null
+        }
+      ]
+    });
+    mockedInspectConnectionSchema.mockImplementation(async (connectionId) =>
+      connectionId === "conn_1"
+        ? {
+            connection_id: "conn_1",
+            connection_label: "Portfolio",
+            objects: [
+              {
+                name: "loans",
+                object_type: "table",
+                columns: [
+                  { name: "account_id", declared_type: "TEXT", nullable: false, primary_key: true },
+                  { name: "customer_id", declared_type: "TEXT", nullable: false, primary_key: false },
+                  { name: "segment_id", declared_type: "TEXT", nullable: false, primary_key: false }
+                ]
+              }
+            ]
+          }
+        : {
+            connection_id: "conn_2",
+            connection_label: "Customer Master",
+            objects: [
+              {
+                name: "customers",
+                object_type: "view",
+                columns: [
+                  { name: "customer_id", declared_type: "TEXT", nullable: false, primary_key: true },
+                  { name: "segment_id", declared_type: "TEXT", nullable: false, primary_key: true },
+                  { name: "name", declared_type: "TEXT", nullable: true, primary_key: false }
+                ]
+              }
+            ]
+          }
+    );
+    mockedTestUnsavedDataModel.mockResolvedValue({ succeeded: true, status: "tested", errors: [], warnings: [] });
+    render(<DataModelBuilder />);
+
+    await user.type(screen.getByLabelText("Data model name"), "Portfolio Star");
+    await user.selectOptions(await screen.findByLabelText("New source connection"), "conn_1");
+    await user.click(screen.getByRole("button", { name: "Add source connection" }));
+    await user.clear(screen.getByLabelText("Source alias 1"));
+    await user.type(screen.getByLabelText("Source alias 1"), "portfolio");
+    await user.selectOptions(screen.getByLabelText("New source connection"), "conn_2");
+    await user.click(screen.getByRole("button", { name: "Add source connection" }));
+    await user.clear(screen.getByLabelText("Source alias 2"));
+    await user.type(screen.getByLabelText("Source alias 2"), "customer");
+
+    await user.selectOptions(screen.getByLabelText("Fact source connection"), "conn_1");
+    await user.selectOptions(screen.getByLabelText("Fact table or view"), "loans");
+    await user.selectOptions(screen.getByLabelText("Fact primary key columns"), ["account_id"]);
+
+    await user.click(screen.getByRole("button", { name: "Add dimension" }));
+    await user.selectOptions(screen.getByLabelText("Dimension 1 source connection"), "conn_2");
+    await user.selectOptions(screen.getByLabelText("Dimension 1 table or view"), "customers");
+    await user.clear(screen.getByLabelText("Dimension 1 alias"));
+    await user.type(screen.getByLabelText("Dimension 1 alias"), "dim_customer");
+    await user.selectOptions(screen.getByLabelText("Dimension 1 primary key columns"), ["customer_id", "segment_id"]);
+
+    await user.click(screen.getByRole("button", { name: "Add key pair for dim_customer" }));
+    await user.selectOptions(screen.getByLabelText("Relationship 1 fact column 1"), "customer_id");
+    await user.selectOptions(screen.getByLabelText("Relationship 1 dimension column 1"), "customer_id");
+    await user.click(screen.getByRole("button", { name: "Add key pair for dim_customer" }));
+    await user.selectOptions(screen.getByLabelText("Relationship 1 fact column 2"), "segment_id");
+    await user.selectOptions(screen.getByLabelText("Relationship 1 dimension column 2"), "segment_id");
+
+    await user.click(screen.getByRole("button", { name: "Add business rule" }));
+    await user.clear(screen.getByLabelText("Business rule 1 name"));
+    await user.type(screen.getByLabelText("Business rule 1 name"), "customer_name");
+    await user.type(screen.getByLabelText("Business rule 1 expression"), "upper(dim_customer.name)");
+    await user.selectOptions(screen.getByLabelText("Business rule 1 output type"), "text");
+    await user.click(screen.getByRole("button", { name: "Test model" }));
+
+    await waitFor(() =>
+      expect(mockedTestUnsavedDataModel).toHaveBeenCalledWith({
+        model: expect.objectContaining({
+          sources: [
+            expect.objectContaining({ connection_id: "conn_1", alias: "portfolio" }),
+            expect.objectContaining({ connection_id: "conn_2", alias: "customer" })
+          ],
+          fact_table: expect.objectContaining({ connection_id: "conn_1", table: "loans", primary_key: ["account_id"] }),
+          dimensions: [
+            expect.objectContaining({
+              id: expect.stringMatching(/^dim_/),
+              connection_id: "conn_2",
+              table: "customers",
+              object_type: "view",
+              alias: "dim_customer",
+              primary_key: ["customer_id", "segment_id"]
+            })
+          ],
+          relationships: [
+            expect.objectContaining({
+              id: expect.stringMatching(/^rel_/),
+              join_type: "left",
+              key_pairs: [
+                { fact_column: "customer_id", dimension_column: "customer_id" },
+                { fact_column: "segment_id", dimension_column: "segment_id" }
+              ]
+            })
+          ],
+          business_rules: [
+            expect.objectContaining({ id: expect.stringMatching(/^rule_/), name: "customer_name", expression: "upper(dim_customer.name)", output_type: "text" })
+          ]
+        })
+      })
+    );
+
+    const testedModel = mockedTestUnsavedDataModel.mock.calls.at(-1)?.[0].model;
+    mockedCreateDataModel.mockResolvedValue({ ...savedModel, model: testedModel ?? blankModel });
+    await user.click(screen.getByRole("button", { name: "Save Draft" }));
+
+    expect(mockedCreateDataModel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Portfolio Star",
+        model: expect.objectContaining({
+          dimensions: [expect.objectContaining({ id: testedModel?.dimensions[0].id })],
+          relationships: [expect.objectContaining({ id: testedModel?.relationships[0].id })],
+          business_rules: [expect.objectContaining({ id: testedModel?.business_rules[0].id })]
+        })
+      })
+    );
+    expect(await screen.findByText("Name locked")).toBeInTheDocument();
+  }, 15000);
+
+  it("preserves compatible relationship keys when a dimension table changes", async () => {
+    const user = userEvent.setup();
+    mockedInspectConnectionSchema.mockResolvedValue({
+      connection_id: "conn_1",
+      connection_label: "Portfolio",
+      objects: [
+        {
+          name: "loans",
+          object_type: "table",
+          columns: [
+            { name: "account_id", declared_type: "TEXT", nullable: false, primary_key: true },
+            { name: "customer_id", declared_type: "TEXT", nullable: false, primary_key: false }
+          ]
+        },
+        { name: "customers", object_type: "table", columns: [{ name: "customer_id", declared_type: "TEXT", nullable: false, primary_key: true }] },
+        { name: "customer_archive", object_type: "view", columns: [{ name: "customer_id", declared_type: "TEXT", nullable: false, primary_key: true }] }
+      ]
+    });
+    render(<DataModelBuilder />);
+
+    await user.selectOptions(await screen.findByLabelText("New source connection"), "conn_1");
+    await user.click(screen.getByRole("button", { name: "Add source connection" }));
+    await user.selectOptions(screen.getByLabelText("Fact source connection"), "conn_1");
+    await user.selectOptions(screen.getByLabelText("Fact table or view"), "loans");
+    await user.click(screen.getByRole("button", { name: "Add dimension" }));
+    await user.selectOptions(screen.getByLabelText("Dimension 1 table or view"), "customers");
+    await user.click(screen.getByRole("button", { name: "Add key pair for dim_customers" }));
+    await user.selectOptions(screen.getByLabelText("Relationship 1 fact column 1"), "customer_id");
+    await user.selectOptions(screen.getByLabelText("Relationship 1 dimension column 1"), "customer_id");
+
+    await user.selectOptions(screen.getByLabelText("Dimension 1 table or view"), "customer_archive");
+
+    expect(screen.getByLabelText("Relationship 1 fact column 1")).toHaveValue("customer_id");
+    expect(screen.getByLabelText("Relationship 1 dimension column 1")).toHaveValue("customer_id");
+  });
+
+  it("shows a safe retry state when saved-model hydration fails", async () => {
+    mockedGetDataModel.mockRejectedValue(new Error("network"));
+
+    render(<DataModelBuilder modelId="model_1" />);
+
+    expect(await screen.findByRole("heading", { name: "Data model could not be loaded" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry loading data model" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Drop" })).not.toBeInTheDocument();
+  });
+
+  it("tests the visible draft instead of the persisted model after an existing model is edited", async () => {
+    const user = userEvent.setup();
+    mockedGetDataModel.mockResolvedValue({ ...savedModel, model: configuredModel });
+    render(<DataModelBuilder modelId="model_1" />);
+
+    expect(await screen.findByRole("heading", { name: "Portfolio Star" })).toBeInTheDocument();
+    await user.clear(screen.getByLabelText("Description"));
+    await user.type(screen.getByLabelText("Description"), "Edited but not saved");
+    await user.click(screen.getByRole("button", { name: "Test model" }));
+
+    expect(mockedTestUnsavedDataModel).toHaveBeenCalledWith({ model: configuredModel });
+    expect(mockedTestSavedDataModel).not.toHaveBeenCalled();
+    expect(await screen.findByText(/Draft test results are not persisted/)).toBeInTheDocument();
+  });
+
+  it("hydrates every saved dimension and cascades dimension alias edits into business rules", async () => {
+    const user = userEvent.setup();
+    const rolePlayingModel = {
+      ...configuredModel,
+      dimensions: [
+        configuredModel.dimensions[0],
+        { ...configuredModel.dimensions[0], id: "dim_guarantor", alias: "dim_guarantor" }
+      ],
+      relationships: [
+        configuredModel.relationships[0],
+        { ...configuredModel.relationships[0], id: "rel_guarantor", dimension_id: "dim_guarantor" }
+      ],
+      business_rules: [{ ...configuredModel.business_rules[0], expression: "coalesce(dim_customers.name, dim_guarantor.name)" }]
+    };
+    mockedGetDataModel.mockResolvedValue({ ...savedModel, model: rolePlayingModel });
+    render(<DataModelBuilder modelId="model_1" />);
+
+    expect(await screen.findByLabelText("Dimension 2 alias")).toHaveValue("dim_guarantor");
+    await user.clear(screen.getByLabelText("Dimension 1 alias"));
+    await user.type(screen.getByLabelText("Dimension 1 alias"), "dim_borrower");
+
+    expect(screen.getByLabelText("Business rule 1 expression")).toHaveValue("coalesce(dim_borrower.name, dim_guarantor.name)");
   });
 });
 
 describe("CreditModelerWorkbench data models", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedCreateDataModel.mockResolvedValue(savedModel);
+    mockedDeleteDataModel.mockResolvedValue(undefined);
     mockedListConnections.mockResolvedValue({ connections: [] });
     mockedListDataModels.mockResolvedValue({ items: [] });
   });
@@ -305,7 +634,7 @@ describe("CreditModelerWorkbench data models", () => {
     render(<CreditModelerWorkbench />);
 
     const dataModelsToggle = await screen.findByRole("button", { name: "Data Models submenu" });
-    expect(dataModelsToggle).toHaveAttribute("aria-expanded", "true");
+    await waitFor(() => expect(dataModelsToggle).toHaveAttribute("aria-expanded", "true"));
     expect(screen.queryByRole("button", { name: "Origination" })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Portfolio Star" }));
@@ -324,10 +653,38 @@ describe("CreditModelerWorkbench data models", () => {
     await user.click(screen.getByRole("button", { name: "Save Draft" }));
 
     expect(await screen.findByRole("button", { name: "Portfolio Star" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Portfolio Star" }));
-    await user.click(await screen.findByRole("button", { name: "Drop" }));
+    await user.click(screen.getByRole("button", { name: "Drop" }));
 
     await waitFor(() => expect(screen.queryByRole("button", { name: "Portfolio Star" })).not.toBeInTheDocument());
     vi.restoreAllMocks();
   });
+
+  it("keeps a newly saved model when the initial model list resolves late", async () => {
+    const user = userEvent.setup();
+    let resolveList: ((response: { items: [] }) => void) | undefined;
+    mockedListDataModels.mockImplementation(
+      () => new Promise((resolve) => {
+        resolveList = resolve;
+      })
+    );
+    render(<CreditModelerWorkbench />);
+
+    await user.click(within(screen.getByTestId("workbench-tree")).getByRole("button", { name: "Data Models" }));
+    await user.type(await screen.findByLabelText("Data model name"), "Portfolio Star");
+    await user.click(screen.getByRole("button", { name: "Save Draft" }));
+    expect(await screen.findByRole("button", { name: "Portfolio Star" })).toBeInTheDocument();
+
+    resolveList?.({ items: [] });
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Portfolio Star" })).toBeInTheDocument());
+  });
 });
+
+function replaceConfiguredConnection(model: typeof configuredModel, connectionId: string): typeof configuredModel {
+  return {
+    ...model,
+    sources: model.sources.map((source) => ({ ...source, connection_id: connectionId })),
+    fact_table: { ...model.fact_table, connection_id: connectionId },
+    dimensions: model.dimensions.map((dimension) => ({ ...dimension, connection_id: connectionId }))
+  };
+}

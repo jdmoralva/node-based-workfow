@@ -31,7 +31,13 @@ async function requestJson<T>(path: string, init: RequestInit, config: DataModel
   });
 
   if (!response.ok) {
-    throw new Error("Data model request failed.");
+    let detail: unknown;
+    try {
+      detail = (await response.json() as { detail?: unknown }).detail;
+    } catch {
+      detail = null;
+    }
+    throw new Error(typeof detail === "string" && detail.trim() ? detail : "Data model request failed.");
   }
 
   if (response.status === 204) {
