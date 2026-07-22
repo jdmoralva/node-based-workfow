@@ -1,0 +1,100 @@
+<style>
+  .direction-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; margin-top:24px; }
+  .direction-card { min-width:0; border:1px solid #d9dbe5; border-radius:13px; overflow:hidden; background:#fff; cursor:pointer; transition:160ms ease; }
+  .direction-card:hover { border-color:#7779a9; transform:translateY(-2px); }
+  .direction-card.selected { border-color:#5c5d92; box-shadow:0 0 0 2px rgba(92,93,146,.14); }
+  .direction-body { padding:14px; border-top:1px solid #e5e6ed; }
+  .direction-body h3 { margin:0 0 5px; font-size:15px; color:#44495a; }
+  .direction-body p { margin:0; font-size:12px; line-height:1.45; color:#767c8d; }
+  .screen { height:300px; overflow:hidden; padding:10px; background:#f6f7f9; color:#555c70; font:10px/1.35 system-ui,sans-serif; }
+  .screen-bar { display:flex; align-items:center; justify-content:space-between; padding:8px 9px; border:1px solid #dcdee7; border-radius:7px; background:#fff; font-weight:700; }
+  .screen-bar span { color:#5c5d92; font-size:9px; }
+  .screen-grid { display:grid; grid-template-columns:minmax(0,1fr) 112px; gap:8px; margin-top:8px; }
+  .panel { border:1px solid #dcdee7; border-radius:7px; background:#fff; overflow:hidden; }
+  .panel-title { display:flex; justify-content:space-between; padding:7px 8px; border-bottom:1px solid #e6e7ed; font-weight:700; }
+  .muted { color:#9499a6; font-weight:500; }
+  .suggestion { margin:7px; padding:7px; border:1px solid #dedfeb; border-radius:6px; background:#f8f8fc; }
+  .suggestion strong,.edge strong { display:block; color:#4e5468; }
+  .suggestion-row { display:flex; align-items:center; justify-content:space-between; gap:6px; margin-top:5px; }
+  .pill { display:inline-block; padding:2px 5px; border-radius:8px; background:#ececf5; color:#5c5d92; font-size:8px; font-weight:700; }
+  .mini-button { padding:3px 7px; border-radius:4px; background:#5c5d92; color:#fff; font-size:8px; }
+  .edge { margin:7px; padding:7px; border:1px solid #e1e2e8; border-radius:6px; }
+  .keys { display:grid; grid-template-columns:1fr 12px 1fr; gap:3px; align-items:center; margin-top:6px; color:#7c8292; }
+  .field { padding:4px; border:1px solid #dedfe6; border-radius:4px; background:#fafbfc; }
+  .tree { padding:8px; background-image:radial-gradient(#cfd2dc .6px,transparent .6px); background-size:9px 9px; }
+  .node { margin:5px 0; padding:5px 6px; border:1px solid #d4d6e0; border-radius:5px; background:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .node.root { border-color:#7779a9; background:#f0f0f7; font-weight:700; }
+  .branch { margin-left:9px; padding-left:7px; border-left:1px solid #b8bdca; }
+  .catalog-layout { display:grid; grid-template-columns:82px minmax(0,1fr) 95px; gap:6px; margin-top:8px; }
+  .catalog-item { margin:5px; padding:5px; border-radius:4px; background:#f5f6f8; }
+  .canvas { position:relative; min-height:327px; padding:8px; background-image:radial-gradient(#d5d7df .6px,transparent .6px); background-size:10px 10px; }
+  .canvas .node { width:76px; margin:7px auto; text-align:center; }
+  .canvas .row { display:flex; justify-content:space-around; gap:4px; }
+  .inspector-copy { padding:7px; color:#7d8392; }
+  .graph-canvas { position:relative; min-height:327px; padding:10px; background-image:radial-gradient(#d5d7df .7px,transparent .7px); background-size:10px 10px; }
+  .graph-row { display:flex; justify-content:center; gap:12px; margin:16px 0; }
+  .graph-node { width:72px; padding:7px 5px; border:1px solid #d1d4de; border-radius:6px; background:#fff; text-align:center; box-shadow:0 2px 5px rgba(60,65,85,.05); }
+  .graph-node.root { border-color:#696b9d; background:#efeff7; }
+  .graph-toolbar { display:flex; gap:5px; padding:6px; border-bottom:1px solid #e1e3e9; background:#fff; }
+  .tool { padding:3px 5px; border:1px solid #dedfe6; border-radius:4px; background:#f8f9fa; }
+  @media (max-width:900px) { .direction-grid { grid-template-columns:1fr; } }
+</style>
+
+<h2>How should relationship configuration feel?</h2>
+<p class="subtitle">All three support the approved rooted Chinook tree. Select the layout that makes reviewing detected joins and repairing paths easiest.</p>
+
+<div class="direction-grid">
+  <div class="direction-card" data-choice="review-first" onclick="toggleSelect(this)">
+    <div class="screen">
+      <div class="screen-bar">05 &nbsp; Relationships <span>8 connected</span></div>
+      <div class="screen-grid">
+        <div>
+          <div class="panel">
+            <div class="panel-title">Detected joins <span class="muted">6 suggestions</span></div>
+            <div class="suggestion">
+              <strong>InvoiceLine.TrackId &rarr; Track.TrackId</strong>
+              <div class="suggestion-row"><span class="pill">Declared foreign key</span><span class="mini-button">Add relationship</span></div>
+            </div>
+            <div class="suggestion">
+              <strong>Track.AlbumId &rarr; Album.AlbumId</strong>
+              <div class="suggestion-row"><span class="pill">Extends Track path</span><span class="mini-button">Add relationship</span></div>
+            </div>
+          </div>
+          <div class="panel" style="margin-top:7px">
+            <div class="panel-title">Configured paths <span class="muted">Root first</span></div>
+            <div class="edge"><strong>InvoiceLine &rarr; Invoice</strong><span class="pill">LEFT</span><div class="keys"><span class="field">InvoiceId</span><span>=</span><span class="field">InvoiceId</span></div></div>
+            <div class="edge"><strong>Invoice &rarr; Customer</strong><span class="pill">LEFT</span><div class="keys"><span class="field">CustomerId</span><span>=</span><span class="field">CustomerId</span></div></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Model map</div>
+          <div class="tree"><div class="node root">InvoiceLine</div><div class="branch"><div class="node">Invoice</div><div class="branch"><div class="node">Customer</div><div class="branch"><div class="node">Employee</div></div></div></div><div class="node">Track</div><div class="branch"><div class="node">Album</div><div class="node">Genre</div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="direction-body"><h3>A. Review-first workbench</h3><p>Detected joins form a review queue above explicit relationship cards. The live rooted map confirms each table's path. Best fit with the current guided builder.</p></div>
+  </div>
+
+  <div class="direction-card" data-choice="catalog-first" onclick="toggleSelect(this)">
+    <div class="screen">
+      <div class="screen-bar">Relationship studio <span>InvoiceLine root</span></div>
+      <div class="catalog-layout">
+        <div class="panel"><div class="panel-title">Tables</div><div class="catalog-item">InvoiceLine</div><div class="catalog-item">Invoice</div><div class="catalog-item">Customer</div><div class="catalog-item">Track</div><div class="catalog-item">Album</div><div class="catalog-item">Artist</div></div>
+        <div class="panel"><div class="panel-title">Join map <span class="muted">Select an edge</span></div><div class="canvas"><div class="node root">InvoiceLine</div><div class="row"><div class="node">Invoice</div><div class="node">Track</div></div><div class="row"><div class="node">Customer</div><div class="node">Album</div></div><div class="row"><div class="node">Employee</div><div class="node">Artist</div></div></div></div>
+        <div class="panel"><div class="panel-title">Join</div><div class="inspector-copy"><strong>Invoice &rarr; Customer</strong><p>LEFT join</p><div class="field">CustomerId</div><p style="text-align:center">equals</p><div class="field">CustomerId</div><p><span class="pill">Detected</span></p></div></div>
+      </div>
+    </div>
+    <div class="direction-body"><h3>B. Catalog and canvas</h3><p>Tables, topology, and the selected edge are always side by side. Powerful for larger models, but denser and a bigger departure from the current section-based workbench.</p></div>
+  </div>
+
+  <div class="direction-card" data-choice="graph-first" onclick="toggleSelect(this)">
+    <div class="screen">
+      <div class="screen-bar">Model map <span>8 of 8 connected</span></div>
+      <div class="panel" style="margin-top:8px">
+        <div class="graph-toolbar"><span class="tool">Add table</span><span class="tool">Connect</span><span class="tool">Auto layout</span><span class="tool">Review 6 suggestions</span></div>
+        <div class="graph-canvas"><div class="graph-row"><div class="graph-node root">InvoiceLine</div></div><div class="graph-row"><div class="graph-node">Invoice</div><div class="graph-node">Track</div></div><div class="graph-row"><div class="graph-node">Customer</div><div class="graph-node">Album</div><div class="graph-node">Genre</div></div><div class="graph-row"><div class="graph-node">Employee</div><div class="graph-node">Artist</div><div class="graph-node">MediaType</div></div></div>
+      </div>
+    </div>
+    <div class="direction-body"><h3>C. Graph-first editor</h3><p>The diagram becomes the primary editor and opens edge inspectors on selection. Visually direct, but drag/connect mechanics add complexity and make keyboard and mobile workflows harder.</p></div>
+  </div>
+</div>

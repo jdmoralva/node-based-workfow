@@ -8,6 +8,7 @@ github/
 # Databases
 agents/rag/data/chroma/
 agents/text2sql/data/
+data/app/app.db
 
 # Build files
 __pycache__/
