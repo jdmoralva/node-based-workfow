@@ -33,6 +33,7 @@ const mockedTestUnsavedDataModel = vi.mocked(testUnsavedDataModel);
 const mockedUpdateDataModel = vi.mocked(updateDataModel);
 
 const blankModel = {
+  schema_version: 2 as const,
   sources: [],
   fact_table: null,
   dimensions: [],
@@ -59,8 +60,10 @@ const savedModel = {
 };
 
 const configuredModel = {
+  schema_version: 2 as const,
   sources: [{ connection_id: "conn_missing", alias: "portfolio", metadata: {} }],
   fact_table: {
+    id: "fact_loans",
     connection_id: "conn_missing",
     table: "loans",
     object_type: "table" as const,
@@ -83,13 +86,143 @@ const configuredModel = {
   relationships: [
     {
       id: "rel_customers",
-      dimension_id: "dim_customers",
+      parent_table_id: "fact_loans",
+      child_table_id: "dim_customers",
       join_type: "left" as const,
-      key_pairs: [{ fact_column: "customer_id", dimension_column: "customer_id" }],
+      key_pairs: [{ parent_column: "customer_id", child_column: "customer_id" }],
       metadata: {}
     }
   ],
   business_rules: [{ id: "rule_1", name: "rule", expression: "upper(dim_customers.name)", output_type: "text" as const, metadata: {} }],
+  measures: [],
+  metadata: {}
+};
+
+const rootedSchema = {
+  connection_id: "conn_1",
+  connection_label: "Portfolio",
+  objects: [
+    {
+      name: "loans",
+      object_type: "table" as const,
+      columns: [
+        { name: "account_id", declared_type: "TEXT", nullable: false, primary_key: true },
+        { name: "customer_id", declared_type: "TEXT", nullable: false, primary_key: false },
+        { name: "country_id", declared_type: "TEXT", nullable: false, primary_key: false }
+      ],
+      foreign_keys: [
+        {
+          referenced_table: "customers",
+          column_pairs: [{ local_column: "customer_id", referenced_column: "customer_id" }]
+        }
+      ]
+    },
+    {
+      name: "customers",
+      object_type: "table" as const,
+      columns: [
+        { name: "customer_id", declared_type: "TEXT", nullable: false, primary_key: true },
+        { name: "region_id", declared_type: "TEXT", nullable: false, primary_key: false }
+      ],
+      foreign_keys: [
+        {
+          referenced_table: "regions",
+          column_pairs: [{ local_column: "region_id", referenced_column: "region_id" }]
+        }
+      ]
+    },
+    {
+      name: "regions",
+      object_type: "table" as const,
+      columns: [
+        { name: "region_id", declared_type: "TEXT", nullable: false, primary_key: true },
+        { name: "country_id", declared_type: "TEXT", nullable: false, primary_key: false }
+      ],
+      foreign_keys: [
+        {
+          referenced_table: "countries",
+          column_pairs: [{ local_column: "country_id", referenced_column: "country_id" }]
+        }
+      ]
+    },
+    {
+      name: "countries",
+      object_type: "table" as const,
+      columns: [{ name: "country_id", declared_type: "TEXT", nullable: false, primary_key: true }],
+      foreign_keys: []
+    }
+  ]
+};
+
+const rootedModel = {
+  schema_version: 2 as const,
+  sources: [{ connection_id: "conn_1", alias: "portfolio", metadata: {} }],
+  fact_table: {
+    id: "fact_loans",
+    connection_id: "conn_1",
+    table: "loans",
+    object_type: "table" as const,
+    alias: "fact_loans",
+    grain: null,
+    primary_key: ["account_id"],
+    metadata: {}
+  },
+  dimensions: [
+    {
+      id: "dim_customers",
+      connection_id: "conn_1",
+      table: "customers",
+      object_type: "table" as const,
+      alias: "dim_customers",
+      primary_key: ["customer_id"],
+      metadata: {}
+    },
+    {
+      id: "dim_regions",
+      connection_id: "conn_1",
+      table: "regions",
+      object_type: "table" as const,
+      alias: "dim_regions",
+      primary_key: ["region_id"],
+      metadata: {}
+    },
+    {
+      id: "dim_countries",
+      connection_id: "conn_1",
+      table: "countries",
+      object_type: "table" as const,
+      alias: "dim_countries",
+      primary_key: ["country_id"],
+      metadata: {}
+    }
+  ],
+  relationships: [
+    {
+      id: "rel_customers",
+      parent_table_id: "fact_loans",
+      child_table_id: "dim_customers",
+      join_type: "left" as const,
+      key_pairs: [{ parent_column: "customer_id", child_column: "customer_id" }],
+      metadata: {}
+    },
+    {
+      id: "rel_regions",
+      parent_table_id: "dim_customers",
+      child_table_id: "dim_regions",
+      join_type: "left" as const,
+      key_pairs: [{ parent_column: "region_id", child_column: "region_id" }],
+      metadata: {}
+    },
+    {
+      id: "rel_countries",
+      parent_table_id: "dim_regions",
+      child_table_id: "dim_countries",
+      join_type: "left" as const,
+      key_pairs: [{ parent_column: "country_id", child_column: "country_id" }],
+      metadata: {}
+    }
+  ],
+  business_rules: [],
   measures: [],
   metadata: {}
 };
@@ -207,9 +340,10 @@ describe("DataModelBuilder", () => {
     await user.selectOptions(screen.getByLabelText("Fact table or view"), "loans");
     await user.click(screen.getByRole("button", { name: "Add dimension" }));
     await user.selectOptions(screen.getByLabelText("Dimension 1 table or view"), "customers");
+    await user.click(screen.getByRole("button", { name: "Add relationship" }));
     await user.click(screen.getByRole("button", { name: "Add key pair for dim_customers" }));
-    await user.selectOptions(screen.getByLabelText("Relationship 1 fact column 1"), "customer_id");
-    await user.selectOptions(screen.getByLabelText("Relationship 1 dimension column 1"), "customer_id");
+    await user.selectOptions(screen.getByLabelText("Relationship 1 parent column 1"), "customer_id");
+    await user.selectOptions(screen.getByLabelText("Relationship 1 child column 1"), "customer_id");
     await user.click(screen.getByRole("button", { name: "Add business rule" }));
     await user.type(screen.getByLabelText("Business rule 1 expression"), "upper(dim_customers.customer_id)");
     await user.click(screen.getByRole("button", { name: "Test model" }));
@@ -228,6 +362,244 @@ describe("DataModelBuilder", () => {
     );
     expect(await screen.findByText("Data model test succeeded.")).toBeInTheDocument();
     expect(screen.getByText("Compilation only.")).toBeInTheDocument();
+  });
+
+  it("reviews declared foreign keys into a multi-hop rooted model", async () => {
+    const user = userEvent.setup();
+    mockedInspectConnectionSchema.mockResolvedValue({
+      connection_id: "conn_1",
+      connection_label: "Chinook",
+      objects: [
+        {
+          name: "InvoiceLine",
+          object_type: "table",
+          columns: [
+            { name: "InvoiceLineId", declared_type: "INTEGER", nullable: false, primary_key: true },
+            { name: "InvoiceId", declared_type: "INTEGER", nullable: false, primary_key: false }
+          ],
+          foreign_keys: [
+            {
+              referenced_table: "Invoice",
+              column_pairs: [{ local_column: "InvoiceId", referenced_column: "InvoiceId" }]
+            }
+          ]
+        },
+        {
+          name: "Invoice",
+          object_type: "table",
+          columns: [
+            { name: "InvoiceId", declared_type: "INTEGER", nullable: false, primary_key: true },
+            { name: "CustomerId", declared_type: "INTEGER", nullable: false, primary_key: false }
+          ],
+          foreign_keys: [
+            {
+              referenced_table: "Customer",
+              column_pairs: [{ local_column: "CustomerId", referenced_column: "CustomerId" }]
+            }
+          ]
+        },
+        {
+          name: "Customer",
+          object_type: "table",
+          columns: [{ name: "CustomerId", declared_type: "INTEGER", nullable: false, primary_key: true }],
+          foreign_keys: []
+        }
+      ]
+    });
+    mockedTestUnsavedDataModel.mockResolvedValue({ succeeded: true, status: "tested", errors: [], warnings: [] });
+    render(<DataModelBuilder />);
+
+    await user.selectOptions(await screen.findByLabelText("New source connection"), "conn_1");
+    await user.click(screen.getByRole("button", { name: "Add source connection" }));
+    await user.selectOptions(screen.getByLabelText("Fact source connection"), "conn_1");
+    await user.selectOptions(screen.getByLabelText("Fact table or view"), "InvoiceLine");
+
+    expect(await screen.findByText("2 suggestions")).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "Select detected relationship Invoice.CustomerId = Customer.CustomerId"
+      })
+    );
+    expect(
+      screen.getByRole("checkbox", {
+        name: "Select detected relationship InvoiceLine.InvoiceId = Invoice.InvoiceId"
+      })
+    ).toBeChecked();
+    await user.click(screen.getByRole("button", { name: "Add 2 selected relationships" }));
+    await user.click(screen.getByRole("button", { name: "Test model" }));
+
+    const testedModel = mockedTestUnsavedDataModel.mock.calls.at(-1)?.[0].model;
+    expect(testedModel?.schema_version).toBe(2);
+    expect(testedModel?.dimensions).toEqual([
+      expect.objectContaining({ table: "Invoice", alias: "dim_invoice", primary_key: ["InvoiceId"] }),
+      expect.objectContaining({ table: "Customer", alias: "dim_customer", primary_key: ["CustomerId"] })
+    ]);
+    expect(testedModel?.relationships).toEqual([
+      expect.objectContaining({
+        parent_table_id: testedModel?.fact_table?.id,
+        child_table_id: testedModel?.dimensions[0].id,
+        key_pairs: [{ parent_column: "InvoiceId", child_column: "InvoiceId" }]
+      }),
+      expect.objectContaining({
+        parent_table_id: testedModel?.dimensions[0].id,
+        child_table_id: testedModel?.dimensions[1].id,
+        key_pairs: [{ parent_column: "CustomerId", child_column: "CustomerId" }]
+      })
+    ]);
+    expect(screen.getByText("2 connected")).toBeInTheDocument();
+  });
+
+  it("requires an atomic choice when removing an intermediate dimension branch", async () => {
+    const user = userEvent.setup();
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValueOnce(false);
+    mockedGetDataModel.mockResolvedValue({ ...savedModel, model: rootedModel });
+    mockedInspectConnectionSchema.mockResolvedValue(rootedSchema);
+    render(<DataModelBuilder modelId="model_1" />);
+
+    expect(await screen.findAllByRole("button", { name: /Remove dimension/ })).toHaveLength(3);
+    await user.click(screen.getByRole("button", { name: "Remove dimension 1" }));
+    expect(screen.getAllByRole("button", { name: /Remove dimension/ })).toHaveLength(3);
+
+    confirmSpy.mockReturnValueOnce(true).mockReturnValueOnce(true);
+    await user.click(screen.getByRole("button", { name: "Remove dimension 1" }));
+    expect(screen.queryByRole("button", { name: /Remove dimension/ })).not.toBeInTheDocument();
+    expect(confirmSpy).toHaveBeenCalledTimes(3);
+    confirmSpy.mockRestore();
+  });
+
+  it("preserves other-source descendants or removes the full affected branch by explicit choice", async () => {
+    const user = userEvent.setup();
+    const multiSourceModel = {
+      ...rootedModel,
+      sources: [
+        ...rootedModel.sources,
+        { connection_id: "conn_2", alias: "geography", metadata: {} }
+      ],
+      dimensions: rootedModel.dimensions.map((dimension) =>
+        dimension.id === "dim_customers" ? dimension : { ...dimension, connection_id: "conn_2" }
+      )
+    };
+    mockedListConnections.mockResolvedValue({
+      connections: [
+        {
+          id: "conn_1",
+          label: "Portfolio",
+          driver: "sqlite",
+          database_path: "portfolio.db",
+          created_at: "2026-07-18T10:00:00Z",
+          updated_at: "2026-07-18T10:00:00Z",
+          last_tested_at: null
+        },
+        {
+          id: "conn_2",
+          label: "Geography",
+          driver: "sqlite",
+          database_path: "geography.db",
+          created_at: "2026-07-18T10:00:00Z",
+          updated_at: "2026-07-18T10:00:00Z",
+          last_tested_at: null
+        }
+      ]
+    });
+    mockedGetDataModel.mockResolvedValue({ ...savedModel, model: multiSourceModel });
+    mockedInspectConnectionSchema.mockImplementation(async (connectionId) => ({
+      ...rootedSchema,
+      connection_id: connectionId,
+      connection_label: connectionId === "conn_1" ? "Portfolio" : "Geography"
+    }));
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValueOnce(true).mockReturnValueOnce(false);
+    render(<DataModelBuilder modelId="model_1" />);
+
+    await screen.findByRole("heading", { name: "Portfolio Star" });
+    await user.click(screen.getByRole("button", { name: "Remove source Portfolio" }));
+    expect(screen.getAllByRole("button", { name: /Remove dimension/ })).toHaveLength(2);
+    expect(screen.getByText("dim_regions → dim_countries")).toBeInTheDocument();
+    expect(confirmSpy).toHaveBeenCalledTimes(2);
+
+    cleanup();
+    confirmSpy.mockReset();
+    confirmSpy.mockReturnValueOnce(true).mockReturnValueOnce(true);
+    render(<DataModelBuilder modelId="model_1" />);
+    await screen.findByRole("heading", { name: "Portfolio Star" });
+    await user.click(screen.getByRole("button", { name: "Remove source Portfolio" }));
+    expect(screen.queryByRole("button", { name: /Remove dimension/ })).not.toBeInTheDocument();
+    confirmSpy.mockRestore();
+  });
+
+  it("prevents invalid endpoint choices and preserves compatible keys when an endpoint changes", async () => {
+    const user = userEvent.setup();
+    mockedGetDataModel.mockResolvedValue({ ...savedModel, model: rootedModel });
+    mockedInspectConnectionSchema.mockResolvedValue(rootedSchema);
+    render(<DataModelBuilder modelId="model_1" />);
+
+    const firstParent = await screen.findByLabelText("Relationship 1 parent table");
+    expect(within(firstParent).queryByRole("option", { name: "dim_customers" })).not.toBeInTheDocument();
+    expect(within(firstParent).queryByRole("option", { name: "dim_regions" })).not.toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("Relationship 3 parent table"), "fact_loans");
+    expect(screen.getByLabelText("Relationship 3 parent column 1")).toHaveValue("country_id");
+    expect(screen.getByLabelText("Relationship 3 child column 1")).toHaveValue("country_id");
+
+    await user.selectOptions(screen.getByLabelText("Relationship 3 parent table"), "");
+    expect(screen.queryByLabelText("Relationship 3 parent column 1")).not.toBeInTheDocument();
+    expect(screen.getByText("Incompatible relationship key pairs were cleared after the endpoint changed.")).toBeInTheDocument();
+  });
+
+  it("requires an explicit target choice for ambiguous role-playing dimensions", async () => {
+    const user = userEvent.setup();
+    const ambiguousModel = {
+      ...rootedModel,
+      dimensions: [
+        { ...rootedModel.dimensions[0], id: "dim_customer_billing", alias: "dim_customer_billing" },
+        { ...rootedModel.dimensions[0], id: "dim_customer_shipping", alias: "dim_customer_shipping" }
+      ],
+      relationships: []
+    };
+    mockedGetDataModel.mockResolvedValue({ ...savedModel, model: ambiguousModel });
+    mockedInspectConnectionSchema.mockResolvedValue(rootedSchema);
+    render(<DataModelBuilder modelId="model_1" />);
+
+    const targetChoice = await screen.findByLabelText(
+      "Detected relationship target loans.customer_id = customers.customer_id"
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: "Add detected relationship loans.customer_id = customers.customer_id"
+      })
+    );
+    expect(screen.getByText("Choose a target alias for every ambiguous detected relationship.")).toBeInTheDocument();
+
+    await user.selectOptions(targetChoice, "dim_customer_billing");
+    await user.click(
+      screen.getByRole("button", {
+        name: "Add detected relationship loans.customer_id = customers.customer_id"
+      })
+    );
+    await user.click(screen.getByRole("button", { name: "Test model" }));
+
+    const testedModel = mockedTestUnsavedDataModel.mock.calls.at(-1)?.[0].model;
+    expect(testedModel?.dimensions).toHaveLength(2);
+    expect(testedModel?.relationships[0].child_table_id).toBe("dim_customer_billing");
+  });
+
+  it("reports foreign-key suggestions omitted by the dimension capacity", async () => {
+    const atCapacityModel = {
+      ...rootedModel,
+      dimensions: Array.from({ length: 25 }, (_, index) => ({
+        ...rootedModel.dimensions[0],
+        id: `dim_existing_${index}`,
+        table: `existing_${index}`,
+        alias: `dim_existing_${index}`
+      })),
+      relationships: []
+    };
+    mockedGetDataModel.mockResolvedValue({ ...savedModel, model: atCapacityModel });
+    mockedInspectConnectionSchema.mockResolvedValue(rootedSchema);
+    render(<DataModelBuilder modelId="model_1" />);
+
+    expect(
+      await screen.findByText(/Some detected relationships were omitted because the discovery limit or remaining dimension capacity was reached/)
+    ).toBeInTheDocument();
   });
 
   it("invalidates draft-only test results after the visible definition changes", async () => {
@@ -336,7 +708,7 @@ describe("DataModelBuilder", () => {
           sources: [expect.objectContaining({ connection_id: "conn_1", alias: "portfolio" })],
           fact_table: expect.objectContaining({ connection_id: "conn_1", table: "loans", alias: "fact_loans" }),
           dimensions: [expect.objectContaining({ connection_id: "conn_1", table: "customers", alias: "dim_customers" })],
-          relationships: [expect.objectContaining({ key_pairs: [{ fact_column: "customer_id", dimension_column: "customer_id" }] })],
+          relationships: [expect.objectContaining({ key_pairs: [{ parent_column: "customer_id", child_column: "customer_id" }] })],
           business_rules: [expect.objectContaining({ expression: "upper(dim_customers.name)" })]
         })
       })
@@ -457,12 +829,13 @@ describe("DataModelBuilder", () => {
     await user.type(screen.getByLabelText("Dimension 1 alias"), "dim_customer");
     await user.selectOptions(screen.getByLabelText("Dimension 1 primary key columns"), ["customer_id", "segment_id"]);
 
+    await user.click(screen.getByRole("button", { name: "Add relationship" }));
     await user.click(screen.getByRole("button", { name: "Add key pair for dim_customer" }));
-    await user.selectOptions(screen.getByLabelText("Relationship 1 fact column 1"), "customer_id");
-    await user.selectOptions(screen.getByLabelText("Relationship 1 dimension column 1"), "customer_id");
+    await user.selectOptions(screen.getByLabelText("Relationship 1 parent column 1"), "customer_id");
+    await user.selectOptions(screen.getByLabelText("Relationship 1 child column 1"), "customer_id");
     await user.click(screen.getByRole("button", { name: "Add key pair for dim_customer" }));
-    await user.selectOptions(screen.getByLabelText("Relationship 1 fact column 2"), "segment_id");
-    await user.selectOptions(screen.getByLabelText("Relationship 1 dimension column 2"), "segment_id");
+    await user.selectOptions(screen.getByLabelText("Relationship 1 parent column 2"), "segment_id");
+    await user.selectOptions(screen.getByLabelText("Relationship 1 child column 2"), "segment_id");
 
     await user.click(screen.getByRole("button", { name: "Add business rule" }));
     await user.clear(screen.getByLabelText("Business rule 1 name"));
@@ -494,8 +867,8 @@ describe("DataModelBuilder", () => {
               id: expect.stringMatching(/^rel_/),
               join_type: "left",
               key_pairs: [
-                { fact_column: "customer_id", dimension_column: "customer_id" },
-                { fact_column: "segment_id", dimension_column: "segment_id" }
+                { parent_column: "customer_id", child_column: "customer_id" },
+                { parent_column: "segment_id", child_column: "segment_id" }
               ]
             })
           ],
@@ -549,14 +922,15 @@ describe("DataModelBuilder", () => {
     await user.selectOptions(screen.getByLabelText("Fact table or view"), "loans");
     await user.click(screen.getByRole("button", { name: "Add dimension" }));
     await user.selectOptions(screen.getByLabelText("Dimension 1 table or view"), "customers");
+    await user.click(screen.getByRole("button", { name: "Add relationship" }));
     await user.click(screen.getByRole("button", { name: "Add key pair for dim_customers" }));
-    await user.selectOptions(screen.getByLabelText("Relationship 1 fact column 1"), "customer_id");
-    await user.selectOptions(screen.getByLabelText("Relationship 1 dimension column 1"), "customer_id");
+    await user.selectOptions(screen.getByLabelText("Relationship 1 parent column 1"), "customer_id");
+    await user.selectOptions(screen.getByLabelText("Relationship 1 child column 1"), "customer_id");
 
     await user.selectOptions(screen.getByLabelText("Dimension 1 table or view"), "customer_archive");
 
-    expect(screen.getByLabelText("Relationship 1 fact column 1")).toHaveValue("customer_id");
-    expect(screen.getByLabelText("Relationship 1 dimension column 1")).toHaveValue("customer_id");
+    expect(screen.getByLabelText("Relationship 1 parent column 1")).toHaveValue("customer_id");
+    expect(screen.getByLabelText("Relationship 1 child column 1")).toHaveValue("customer_id");
   });
 
   it("shows a safe retry state when saved-model hydration fails", async () => {
@@ -594,7 +968,7 @@ describe("DataModelBuilder", () => {
       ],
       relationships: [
         configuredModel.relationships[0],
-        { ...configuredModel.relationships[0], id: "rel_guarantor", dimension_id: "dim_guarantor" }
+        { ...configuredModel.relationships[0], id: "rel_guarantor", child_table_id: "dim_guarantor" }
       ],
       business_rules: [{ ...configuredModel.business_rules[0], expression: "coalesce(dim_customers.name, dim_guarantor.name)" }]
     };

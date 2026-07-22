@@ -52,8 +52,23 @@ type BuilderSectionProps = {
   title: string;
 };
 
+type ModelTable = NonNullable<DataModelDefinition["fact_table"]> | DataModelDimension;
+
+type RelationshipSuggestion = {
+  id: string;
+  parentTableId: string;
+  parentSuggestionId: string | null;
+  childTableId: string | null;
+  parentTable: string;
+  referencedTable: string;
+  connectionId: string;
+  depth: number;
+  columnPairs: Array<{ parent_column: string; child_column: string }>;
+  reusableTableIds: string[];
+};
+
 function emptyModel(): DataModelDefinition {
-  return { sources: [], fact_table: null, dimensions: [], relationships: [], business_rules: [], measures: [], metadata: {} };
+  return { schema_version: 2, sources: [], fact_table: null, dimensions: [], relationships: [], business_rules: [], measures: [], metadata: {} };
 }
 
 function aliasFor(prefix: string, value: string): string {
@@ -64,9 +79,65 @@ function aliasFor(prefix: string, value: string): string {
   return `${prefix}_${normalized || "source"}`;
 }
 
-function itemId(prefix: "dim" | "rel" | "rule"): string {
+function itemId(prefix: "fact" | "dim" | "rel" | "rule"): string {
   const value = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${Math.random().toString(16).slice(2)}`;
   return `${prefix}_${value}`;
+}
+
+function modelTables(model: DataModelDefinition): ModelTable[] {
+  return [...(model.fact_table ? [model.fact_table] : []), ...model.dimensions];
+}
+
+function connectedTableIds(model: DataModelDefinition): Set<string> {
+  const connected = new Set<string>();
+  if (!model.fact_table?.table) {
+    return connected;
+  }
+  connected.add(model.fact_table.id);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    model.relationships.forEach((relationship) => {
+      if (connected.has(relationship.parent_table_id) && !connected.has(relationship.child_table_id)) {
+        connected.add(relationship.child_table_id);
+        changed = true;
+      }
+    });
+  }
+  return connected;
+}
+
+function descendantTableIds(model: DataModelDefinition, tableId: string, excludedRelationshipId?: string): Set<string> {
+  const descendants = new Set<string>();
+  const pending = [tableId];
+  while (pending.length) {
+    const parentId = pending.shift();
+    model.relationships.forEach((relationship) => {
+      if (
+        relationship.id !== excludedRelationshipId
+        && relationship.parent_table_id === parentId
+        && !descendants.has(relationship.child_table_id)
+      ) {
+        descendants.add(relationship.child_table_id);
+        pending.push(relationship.child_table_id);
+      }
+    });
+  }
+  descendants.delete(tableId);
+  return descendants;
+}
+
+function uniqueDimensionAlias(model: DataModelDefinition, table: string): string {
+  const base = aliasFor("dim", table);
+  const aliases = new Set(modelTables(model).map((item) => item.alias.trim().toLowerCase()));
+  if (!aliases.has(base)) {
+    return base;
+  }
+  let suffix = 2;
+  while (aliases.has(`${base}_${suffix}`)) {
+    suffix += 1;
+  }
+  return `${base}_${suffix}`;
 }
 
 function modelSnapshot(name: string, description: string, model: DataModelDefinition): string {
@@ -164,6 +235,8 @@ export function DataModelBuilder({ modelId, onDataModelDropped, onDataModelSaved
   const [replacementConnections, setReplacementConnections] = useState<Record<string, string>>({});
   const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
   const [schemaByConnection, setSchemaByConnection] = useState<Record<string, SchemaState>>({});
+  const [selectedSuggestionIds, setSelectedSuggestionIds] = useState<string[]>([]);
+  const [suggestionTargetSelections, setSuggestionTargetSelections] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState<"drop" | "repair" | "save" | "test" | null>(null);
   const [testStatus, setTestStatus] = useState<DataModelStatus>("draft");
   const aliasOrigins = useRef<Record<string, string>>({});
@@ -203,6 +276,8 @@ export function DataModelBuilder({ modelId, onDataModelDropped, onDataModelSaved
     setFeedback(null);
     setModelLoadError(false);
     setReplacementConnections({});
+    setSelectedSuggestionIds([]);
+    setSuggestionTargetSelections({});
     setSchemaByConnection({});
     requestedSchemas.current.clear();
     aliasOrigins.current = {};
@@ -276,6 +351,159 @@ export function DataModelBuilder({ modelId, onDataModelDropped, onDataModelSaved
   const availableConnections = connections.filter((connection) => !draft.sources.some((source) => source.connection_id === connection.id));
   const dirty = currentModelId ? savedSnapshot !== modelSnapshot(modelName, description, draft) : true;
   const missingConnectionIds = [...new Set(diagnostics.filter((item) => !item.stale).map(diagnosticConnectionId).filter((value): value is string => Boolean(value)))];
+  const tablesById = useMemo(() => new Map(modelTables(draft).map((table) => [table.id, table])), [draft]);
+  const connectedIds = useMemo(() => connectedTableIds(draft), [draft]);
+  const { items: relationshipSuggestions, capOmitted: relationshipSuggestionsOmitted } = useMemo(() => {
+    if (!draft.fact_table?.table) {
+      return { items: [], capOmitted: false };
+    }
+    const incomingIds = new Set(draft.relationships.map((relationship) => relationship.child_table_id));
+    const reservedReusableIds = new Set<string>();
+    const seenSuggestionIds = new Set<string>();
+    const suggestions: RelationshipSuggestion[] = [];
+    let capOmitted = false;
+    let proposedDimensions = 0;
+    const pending: Array<{
+      instanceId: string;
+      parentSuggestionId: string | null;
+      connectionId: string;
+      table: string;
+      depth: number;
+      path: Set<string>;
+    }> = [{
+      instanceId: draft.fact_table.id,
+      parentSuggestionId: null,
+      connectionId: draft.fact_table.connection_id,
+      table: draft.fact_table.table,
+      depth: 0,
+      path: new Set([`${draft.fact_table.connection_id}|${draft.fact_table.table}`])
+    }];
+
+    while (pending.length) {
+      const parent = pending.shift();
+      if (!parent) {
+        continue;
+      }
+      const parentObject = schemaByConnection[parent.connectionId]?.objects.find((item) => item.name === parent.table);
+      const foreignKeys = [...(parentObject?.foreign_keys ?? [])].sort((left, right) => left.referenced_table.localeCompare(right.referenced_table));
+      if (parent.depth >= MAX_DIMENSIONS) {
+        capOmitted ||= foreignKeys.length > 0;
+        continue;
+      }
+      foreignKeys.forEach((foreignKey) => {
+        if (suggestions.length >= MAX_DIMENSIONS) {
+          capOmitted = true;
+          return;
+        }
+        const physicalTarget = `${parent.connectionId}|${foreignKey.referenced_table}`;
+        if (parent.path.has(physicalTarget)) {
+          return;
+        }
+        const existingRelationship = parent.instanceId
+          ? draft.relationships.find((relationship) => {
+              const child = tablesById.get(relationship.child_table_id);
+              return relationship.parent_table_id === parent.instanceId
+                && child?.connection_id === parent.connectionId
+                && child.table === foreignKey.referenced_table;
+            })
+          : undefined;
+        if (existingRelationship) {
+          const child = tablesById.get(existingRelationship.child_table_id);
+          if (child) {
+            pending.push({
+              instanceId: child.id,
+              parentSuggestionId: parent.parentSuggestionId,
+              connectionId: child.connection_id,
+              table: child.table,
+              depth: parent.depth + 1,
+              path: new Set([...parent.path, physicalTarget])
+            });
+          }
+          return;
+        }
+
+        const pairs = foreignKey.column_pairs.map((pair) => ({
+          parent_column: pair.local_column,
+          child_column: pair.referenced_column
+        }));
+        const suggestionId = `${parent.parentSuggestionId ?? parent.instanceId}|${parent.table}|${foreignKey.referenced_table}|${pairs.map((pair) => `${pair.parent_column}:${pair.child_column}`).join(",")}`;
+        if (seenSuggestionIds.has(suggestionId)) {
+          return;
+        }
+        const reusableDimensions = draft.dimensions.filter(
+          (dimension) => dimension.connection_id === parent.connectionId
+            && dimension.table === foreignKey.referenced_table
+            && !incomingIds.has(dimension.id)
+            && !reservedReusableIds.has(dimension.id)
+        );
+        const reusableDimension = reusableDimensions.length === 1 ? reusableDimensions[0] : undefined;
+        if (!reusableDimensions.length && draft.dimensions.length + proposedDimensions >= MAX_DIMENSIONS) {
+          capOmitted = true;
+          return;
+        }
+        seenSuggestionIds.add(suggestionId);
+        if (reusableDimension) {
+          reservedReusableIds.add(reusableDimension.id);
+        } else if (!reusableDimensions.length) {
+          proposedDimensions += 1;
+        }
+        suggestions.push({
+          id: suggestionId,
+          parentTableId: parent.instanceId,
+          parentSuggestionId: parent.parentSuggestionId,
+          childTableId: reusableDimension?.id ?? null,
+          parentTable: parent.table,
+          referencedTable: foreignKey.referenced_table,
+          connectionId: parent.connectionId,
+          depth: parent.depth + 1,
+          columnPairs: pairs,
+          reusableTableIds: reusableDimensions.map((dimension) => dimension.id)
+        });
+        pending.push({
+          instanceId: reusableDimension?.id ?? "",
+          parentSuggestionId: suggestionId,
+          connectionId: parent.connectionId,
+          table: foreignKey.referenced_table,
+          depth: parent.depth + 1,
+          path: new Set([...parent.path, physicalTarget])
+        });
+      });
+    }
+    return {
+      items: suggestions.sort((left, right) => left.depth - right.depth || `${left.parentTable}.${left.referencedTable}`.localeCompare(`${right.parentTable}.${right.referencedTable}`)),
+      capOmitted
+    };
+  }, [draft, schemaByConnection, tablesById]);
+  useEffect(() => {
+    const availableIds = new Set(relationshipSuggestions.map((suggestion) => suggestion.id));
+    setSelectedSuggestionIds((current) => current.filter((id) => availableIds.has(id)));
+    setSuggestionTargetSelections((current) => Object.fromEntries(
+      Object.entries(current).filter(([id]) => availableIds.has(id))
+    ));
+  }, [relationshipSuggestions]);
+  const modelMapRows = useMemo(() => {
+    const rows: Array<{ relationship: DataModelRelationship; depth: number }> = [];
+    if (!draft.fact_table) {
+      return rows;
+    }
+    const byParent = new Map<string, DataModelRelationship[]>();
+    draft.relationships.forEach((relationship) => {
+      const current = byParent.get(relationship.parent_table_id) ?? [];
+      current.push(relationship);
+      byParent.set(relationship.parent_table_id, current);
+    });
+    const visit = (parentId: string, depth: number, seen: Set<string>) => {
+      (byParent.get(parentId) ?? []).forEach((relationship) => {
+        if (seen.has(relationship.child_table_id)) {
+          return;
+        }
+        rows.push({ relationship, depth });
+        visit(relationship.child_table_id, depth + 1, new Set([...seen, relationship.child_table_id]));
+      });
+    };
+    visit(draft.fact_table.id, 0, new Set([draft.fact_table.id]));
+    return rows;
+  }, [draft]);
   const completenessGaps = useMemo(() => {
     const gaps: string[] = [];
     const findSchemaObject = (connectionId: string, table: string) => schemaByConnection[connectionId]?.objects.find((item) => item.name === table);
@@ -310,20 +538,27 @@ export function DataModelBuilder({ modelId, onDataModelDropped, onDataModelSaved
       } else if (dimensionObject && dimension.primary_key.some((column) => !dimensionObject.columns.some((item) => item.name === column))) {
         gaps.push(`Repair unavailable primary-key columns for ${dimension.alias || `dimension ${index + 1}`}.`);
       }
-      if (!draft.relationships.some((relationship) => relationship.dimension_id === dimension.id)) {
-        gaps.push(`Add a direct relationship for ${dimension.alias || `dimension ${index + 1}`}.`);
+      if (!draft.relationships.some((relationship) => relationship.child_table_id === dimension.id)) {
+        gaps.push(`Connect ${dimension.alias || `dimension ${index + 1}`} to the model root.`);
+      } else if (!connectedIds.has(dimension.id)) {
+        gaps.push(`Repair the disconnected path for ${dimension.alias || `dimension ${index + 1}`}.`);
       }
     });
     draft.relationships.forEach((relationship) => {
-      const dimension = draft.dimensions.find((item) => item.id === relationship.dimension_id);
-      if (!relationship.key_pairs.length || relationship.key_pairs.some((pair) => !pair.fact_column || !pair.dimension_column)) {
-        gaps.push(`Complete join keys for ${dimension?.alias || "a dimension"}.`);
+      const parent = tablesById.get(relationship.parent_table_id);
+      const child = tablesById.get(relationship.child_table_id);
+      if (!parent || !child) {
+        gaps.push("Repair a relationship with an unavailable table endpoint.");
         return;
       }
-      const factColumns = new Set(findSchemaObject(draft.fact_table?.connection_id ?? "", draft.fact_table?.table ?? "")?.columns.map((column) => column.name) ?? []);
-      const dimensionColumns = new Set(findSchemaObject(dimension?.connection_id ?? "", dimension?.table ?? "")?.columns.map((column) => column.name) ?? []);
-      if (relationship.key_pairs.some((pair) => !factColumns.has(pair.fact_column) || !dimensionColumns.has(pair.dimension_column))) {
-        gaps.push(`Repair unavailable join columns for ${dimension?.alias || "a dimension"}.`);
+      if (!relationship.key_pairs.length || relationship.key_pairs.some((pair) => !pair.parent_column || !pair.child_column)) {
+        gaps.push(`Complete join keys for ${child.alias || "a dimension"}.`);
+        return;
+      }
+      const parentColumns = new Set(findSchemaObject(parent.connection_id, parent.table)?.columns.map((column) => column.name) ?? []);
+      const childColumns = new Set(findSchemaObject(child.connection_id, child.table)?.columns.map((column) => column.name) ?? []);
+      if (relationship.key_pairs.some((pair) => !parentColumns.has(pair.parent_column) || !childColumns.has(pair.child_column))) {
+        gaps.push(`Repair unavailable join columns for ${child.alias || "a dimension"}.`);
       }
     });
     draft.business_rules.forEach((rule, index) => {
@@ -332,7 +567,7 @@ export function DataModelBuilder({ modelId, onDataModelDropped, onDataModelSaved
       }
     });
     return gaps;
-  }, [draft, schemaByConnection]);
+  }, [connectedIds, draft, schemaByConnection, tablesById]);
 
   function schemaObjects(connectionId: string): DataModelSchemaObject[] {
     return schemaByConnection[connectionId]?.objects ?? [];
@@ -500,23 +735,62 @@ export function DataModelBuilder({ modelId, onDataModelDropped, onDataModelSaved
   }
 
   function handleRemoveSource(connectionId: string) {
-    const isReferenced = draft.fact_table?.connection_id === connectionId || draft.dimensions.some((dimension) => dimension.connection_id === connectionId);
-    if (isReferenced && !window.confirm("Remove this source and its dependent fact or dimension configuration? Business rules will be preserved for repair.")) {
+    const affectedIds = new Set([
+      ...(draft.fact_table?.connection_id === connectionId ? [draft.fact_table.id] : []),
+      ...draft.dimensions.filter((dimension) => dimension.connection_id === connectionId).map((dimension) => dimension.id)
+    ]);
+    const removesFact = Boolean(draft.fact_table && affectedIds.has(draft.fact_table.id));
+    if (
+      affectedIds.size
+      && !window.confirm(
+        removesFact
+          ? "Remove this fact source and its affected tables? The connected tree may be removed. Business rules will be preserved for repair."
+          : "Remove this source and its affected dimensions? Business rules will be preserved for repair."
+      )
+    ) {
       return;
     }
-    const removedDimensionIds = new Set(draft.dimensions.filter((dimension) => dimension.connection_id === connectionId).map((dimension) => dimension.id));
+    const descendantIds = new Set<string>();
+    affectedIds.forEach((tableId) => {
+      descendantTableIds(draft, tableId).forEach((descendantId) => descendantIds.add(descendantId));
+    });
+    const unaffectedDescendants = [...descendantIds].filter((tableId) => !affectedIds.has(tableId));
+    const removeDescendantBranches = unaffectedDescendants.length
+      ? window.confirm(
+          "Remove affected descendant branches too? Select OK to remove them, or Cancel to preserve other-source descendants for reattachment."
+        )
+      : false;
     mutateDraft((current) => ({
-      ...current,
-      sources: current.sources.filter((source) => source.connection_id !== connectionId),
-      fact_table: current.fact_table?.connection_id === connectionId ? null : current.fact_table,
-      dimensions: current.dimensions.filter((dimension) => dimension.connection_id !== connectionId),
-      relationships: current.relationships.filter((relationship) => !removedDimensionIds.has(relationship.dimension_id))
+      ...(() => {
+        const removedIds = new Set([
+          ...(current.fact_table?.connection_id === connectionId ? [current.fact_table.id] : []),
+          ...current.dimensions.filter((dimension) => dimension.connection_id === connectionId).map((dimension) => dimension.id),
+          ...(removeDescendantBranches ? unaffectedDescendants : [])
+        ]);
+        return {
+          ...current,
+          sources: current.sources.filter((source) => source.connection_id !== connectionId),
+          fact_table: current.fact_table && removedIds.has(current.fact_table.id) ? null : current.fact_table,
+          dimensions: current.dimensions.filter((dimension) => !removedIds.has(dimension.id)),
+          relationships: current.relationships.filter(
+            (relationship) => !removedIds.has(relationship.parent_table_id) && !removedIds.has(relationship.child_table_id)
+          )
+        };
+      })()
     }));
   }
 
   function handleFactSource(connectionId: string) {
     if (!connectionId) {
-      mutateDraft((current) => ({ ...current, fact_table: null }));
+      mutateDraft((current) => ({
+        ...current,
+        fact_table: null,
+        relationships: current.fact_table
+          ? current.relationships.filter(
+              (relationship) => relationship.parent_table_id !== current.fact_table?.id && relationship.child_table_id !== current.fact_table?.id
+            )
+          : current.relationships
+      }));
       return;
     }
     mutateDraft((current) => {
@@ -524,6 +798,7 @@ export function DataModelBuilder({ modelId, onDataModelDropped, onDataModelSaved
         return {
           ...current,
           fact_table: {
+            id: itemId("fact"),
             connection_id: connectionId,
             table: "",
             object_type: "table",
@@ -603,10 +878,6 @@ export function DataModelBuilder({ modelId, onDataModelDropped, onDataModelSaved
           primary_key: [],
           metadata: {}
         }
-      ],
-      relationships: [
-        ...current.relationships,
-        { id: itemId("rel"), dimension_id: dimensionId, join_type: "left", key_pairs: [], metadata: {} }
       ]
     }));
   }
@@ -650,10 +921,27 @@ export function DataModelBuilder({ modelId, onDataModelDropped, onDataModelSaved
   }
 
   function handleRemoveDimension(dimensionId: string) {
+    const dimension = draft.dimensions.find((item) => item.id === dimensionId);
+    if (!dimension || !window.confirm(`Remove ${dimension.alias || dimension.table || "this dimension"}? Business rules will be preserved for repair.`)) {
+      return;
+    }
+    const descendantIds = descendantTableIds(draft, dimensionId);
+    const removeDescendantBranch = descendantIds.size
+      ? window.confirm(
+          "Remove this dimension's descendant branch too? Select OK to remove it, or Cancel to preserve descendants for reattachment."
+        )
+      : false;
     mutateDraft((current) => ({
       ...current,
-      dimensions: current.dimensions.filter((dimension) => dimension.id !== dimensionId),
-      relationships: current.relationships.filter((relationship) => relationship.dimension_id !== dimensionId)
+      dimensions: current.dimensions.filter(
+        (item) => item.id !== dimensionId && !(removeDescendantBranch && descendantIds.has(item.id))
+      ),
+      relationships: current.relationships.filter(
+        (relationship) => {
+          const removedIds = new Set([dimensionId, ...(removeDescendantBranch ? descendantIds : [])]);
+          return !removedIds.has(relationship.parent_table_id) && !removedIds.has(relationship.child_table_id);
+        }
+      )
     }));
   }
 
@@ -664,15 +952,183 @@ export function DataModelBuilder({ modelId, onDataModelDropped, onDataModelSaved
     }));
   }
 
-  function handleAddKeyPair(relationship: DataModelRelationship, dimension: DataModelDimension) {
-    const factColumns = schemaObject(draft.fact_table?.connection_id ?? "", draft.fact_table?.table ?? "")?.columns ?? [];
-    const dimensionColumns = schemaObject(dimension.connection_id, dimension.table)?.columns ?? [];
+  function handleRelationshipEndpointChange(
+    relationship: DataModelRelationship,
+    endpoint: "parent_table_id" | "child_table_id",
+    tableId: string
+  ) {
+    const parentTableId = endpoint === "parent_table_id" ? tableId : relationship.parent_table_id;
+    const childTableId = endpoint === "child_table_id" ? tableId : relationship.child_table_id;
+    const parent = tablesById.get(parentTableId);
+    const child = tablesById.get(childTableId);
+    const parentObject = schemaObject(parent?.connection_id ?? "", parent?.table ?? "");
+    const childObject = schemaObject(child?.connection_id ?? "", child?.table ?? "");
+    const compatibleKeyPairs = !parentTableId || !childTableId
+      ? []
+      : parentObject && childObject
+        ? relationship.key_pairs.filter(
+            (pair) => parentObject.columns.some((column) => column.name === pair.parent_column)
+              && childObject.columns.some((column) => column.name === pair.child_column)
+          )
+        : relationship.key_pairs;
+    updateRelationship(relationship.id, (current) => ({
+      ...current,
+      [endpoint]: tableId,
+      key_pairs: compatibleKeyPairs,
+      metadata: { ...current.metadata, origin: "manual" }
+    }));
+    if (compatibleKeyPairs.length < relationship.key_pairs.length) {
+      setFeedback("Incompatible relationship key pairs were cleared after the endpoint changed.");
+    }
+  }
+
+  function handleAddKeyPair(relationship: DataModelRelationship) {
+    const parent = tablesById.get(relationship.parent_table_id);
+    const child = tablesById.get(relationship.child_table_id);
+    const parentColumns = schemaObject(parent?.connection_id ?? "", parent?.table ?? "")?.columns ?? [];
+    const childColumns = schemaObject(child?.connection_id ?? "", child?.table ?? "")?.columns ?? [];
     const pair = {
-      fact_column: factColumns.find((column) => !relationship.key_pairs.some((item) => item.fact_column === column.name))?.name ?? factColumns[0]?.name ?? "",
-      dimension_column:
-        dimensionColumns.find((column) => !relationship.key_pairs.some((item) => item.dimension_column === column.name))?.name ?? dimensionColumns[0]?.name ?? ""
+      parent_column: parentColumns.find((column) => !relationship.key_pairs.some((item) => item.parent_column === column.name))?.name ?? parentColumns[0]?.name ?? "",
+      child_column: childColumns.find((column) => !relationship.key_pairs.some((item) => item.child_column === column.name))?.name ?? childColumns[0]?.name ?? ""
     };
     updateRelationship(relationship.id, (current) => ({ ...current, key_pairs: [...current.key_pairs, pair] }));
+  }
+
+  function handleAddRelationship() {
+    if (!draft.fact_table) {
+      return;
+    }
+    const incomingIds = new Set(draft.relationships.map((relationship) => relationship.child_table_id));
+    const child = draft.dimensions.find((dimension) => !incomingIds.has(dimension.id));
+    if (!child) {
+      return;
+    }
+    mutateDraft((current) => ({
+      ...current,
+      relationships: [
+        ...current.relationships,
+        {
+          id: itemId("rel"),
+          parent_table_id: current.fact_table?.id ?? "",
+          child_table_id: child.id,
+          join_type: "left",
+          key_pairs: [],
+          metadata: { origin: "manual" }
+        }
+      ]
+    }));
+  }
+
+  function suggestionClosure(suggestionIds: string[]): RelationshipSuggestion[] {
+    const byId = new Map(relationshipSuggestions.map((suggestion) => [suggestion.id, suggestion]));
+    const included = new Set<string>();
+    const include = (suggestionId: string) => {
+      const suggestion = byId.get(suggestionId);
+      if (!suggestion || included.has(suggestionId)) {
+        return;
+      }
+      if (suggestion.parentSuggestionId) {
+        include(suggestion.parentSuggestionId);
+      }
+      included.add(suggestionId);
+    };
+    suggestionIds.forEach(include);
+    return relationshipSuggestions.filter((suggestion) => included.has(suggestion.id));
+  }
+
+  function handleToggleSuggestion(suggestionId: string, checked: boolean) {
+    setSelectedSuggestionIds((current) => {
+      if (checked) {
+        return [...new Set([...current, ...suggestionClosure([suggestionId]).map((suggestion) => suggestion.id)])];
+      }
+      return current.filter(
+        (selectedId) => !suggestionClosure([selectedId]).some((suggestion) => suggestion.id === suggestionId)
+      );
+    });
+  }
+
+  function handleAcceptSuggestions(suggestionIds: string[]) {
+    const selected = suggestionClosure(suggestionIds);
+    if (!selected.length) {
+      return;
+    }
+    if (selected.some(
+      (suggestion) => suggestion.reusableTableIds.length > 1 && !suggestionTargetSelections[suggestion.id]
+    )) {
+      setFeedback("Choose a target alias for every ambiguous detected relationship.");
+      return;
+    }
+    mutateDraft((current) => {
+      let next = current;
+      const createdBySuggestion = new Map<string, string>();
+      for (const suggestion of selected) {
+        const parentId = suggestion.parentTableId || (suggestion.parentSuggestionId ? createdBySuggestion.get(suggestion.parentSuggestionId) ?? "" : "");
+        const nextTables = new Map(modelTables(next).map((table) => [table.id, table]));
+        const schemaTarget = schemaObject(suggestion.connectionId, suggestion.referencedTable);
+        if (!parentId || !nextTables.has(parentId) || !schemaTarget) {
+          return current;
+        }
+        const incomingIds = new Set(next.relationships.map((relationship) => relationship.child_table_id));
+        const reusableCandidates = next.dimensions.filter(
+          (dimension) => dimension.connection_id === suggestion.connectionId
+            && dimension.table === suggestion.referencedTable
+            && !incomingIds.has(dimension.id)
+        );
+        const targetSelection = suggestionTargetSelections[suggestion.id];
+        const selectedReusable = targetSelection && targetSelection !== "new"
+          ? reusableCandidates.find((dimension) => dimension.id === targetSelection)
+          : undefined;
+        if (targetSelection && targetSelection !== "new" && !selectedReusable) {
+          return current;
+        }
+        const reusable = selectedReusable
+          ?? (!targetSelection && suggestion.childTableId
+            ? next.dimensions.find((dimension) => dimension.id === suggestion.childTableId)
+            : undefined)
+          ?? (!targetSelection && reusableCandidates.length === 1 ? reusableCandidates[0] : undefined);
+        if (!reusable && next.dimensions.length >= MAX_DIMENSIONS) {
+          return current;
+        }
+        const child = reusable ?? {
+          id: itemId("dim"),
+          connection_id: suggestion.connectionId,
+          table: suggestion.referencedTable,
+          object_type: schemaTarget.object_type,
+          alias: uniqueDimensionAlias(next, suggestion.referencedTable),
+          primary_key: defaultPrimaryKey(schemaTarget),
+          metadata: {}
+        };
+        createdBySuggestion.set(suggestion.id, child.id);
+        next = {
+          ...next,
+          dimensions: reusable ? next.dimensions : [...next.dimensions, child],
+          relationships: [
+            ...next.relationships,
+            {
+              id: itemId("rel"),
+              parent_table_id: parentId,
+              child_table_id: child.id,
+              join_type: "left",
+              key_pairs: suggestion.columnPairs,
+              metadata: {
+                origin: "foreign_key",
+                foreign_key: {
+                  connection_id: suggestion.connectionId,
+                  local_table: suggestion.parentTable,
+                  referenced_table: suggestion.referencedTable,
+                  column_pairs: suggestion.columnPairs.map((pair) => ({
+                    local_column: pair.parent_column,
+                    referenced_column: pair.child_column
+                  }))
+                }
+              }
+            }
+          ]
+        };
+      }
+      return next;
+    });
+    setSelectedSuggestionIds([]);
   }
 
   function handleAddRule() {
@@ -754,7 +1210,7 @@ export function DataModelBuilder({ modelId, onDataModelDropped, onDataModelSaved
             <h2>{currentModelId && modelName ? modelName : "New data model"}</h2>
             {currentModelId ? <span className="rv-data-model-builder__locked">Name locked</span> : null}
           </div>
-          <p>Build a strict star schema from saved SQLite connections, then validate it with a zero-row compile test.</p>
+          <p>Build a fact-rooted dimensional model from saved SQLite connections, then validate it with a zero-row compile test.</p>
         </div>
         <div className="rv-data-model-builder__status-block">
           <span className="rv-data-model-builder__status" data-status={statusTone}>
@@ -1019,65 +1475,176 @@ export function DataModelBuilder({ modelId, onDataModelDropped, onDataModelSaved
 
           <BuilderSection
             number="05"
-            state={`${draft.relationships.length} direct joins`}
+            state={`${draft.relationships.length} joins`}
             stateTone={draft.relationships.every((relationship) => relationship.key_pairs.length > 0) ? "complete" : "warning"}
-            summary="Every dimension joins directly to the fact table"
+            summary="Review detected joins or connect configured tables"
             title="Relationships"
           >
+            {relationshipSuggestions.length ? (
+              <div className="rv-data-model-builder__detected-joins">
+                <div className="rv-data-model-builder__detected-header">
+                  <div><strong>Detected joins</strong><p>Declared foreign keys available from the connected model path.</p></div>
+                  <div className="rv-data-model-builder__detected-actions">
+                    <span>{relationshipSuggestions.length} suggestions</span>
+                    <button
+                      aria-label={`Add ${selectedSuggestionIds.length} selected relationships`}
+                      className="rv-data-model-builder__secondary-button"
+                      disabled={!selectedSuggestionIds.length}
+                      onClick={() => handleAcceptSuggestions(selectedSuggestionIds)}
+                      type="button"
+                    >
+                      Add selected
+                    </button>
+                  </div>
+                </div>
+                {relationshipSuggestions.map((suggestion) => {
+                  const equality = suggestion.columnPairs
+                    .map((pair) => `${suggestion.parentTable}.${pair.parent_column} = ${suggestion.referencedTable}.${pair.child_column}`)
+                    .join(" AND ");
+                  return (
+                    <div className="rv-data-model-builder__detected-join" key={suggestion.id}>
+                      <label className="rv-data-model-builder__detected-choice">
+                        <input
+                          aria-label={`Select detected relationship ${equality}`}
+                          checked={selectedSuggestionIds.includes(suggestion.id)}
+                          onChange={(event) => handleToggleSuggestion(suggestion.id, event.target.checked)}
+                          type="checkbox"
+                        />
+                        <span><strong>{equality}</strong><small>Declared foreign key · path depth {suggestion.depth}</small></span>
+                      </label>
+                      <div className="rv-data-model-builder__detected-target-actions">
+                        {suggestion.reusableTableIds.length > 1 ? (
+                          <label className="rv-data-model-builder__detected-target">
+                            <span>Target alias</span>
+                            <select
+                              aria-label={`Detected relationship target ${equality}`}
+                              onChange={(event) => setSuggestionTargetSelections((current) => ({
+                                ...current,
+                                [suggestion.id]: event.target.value
+                              }))}
+                              value={suggestionTargetSelections[suggestion.id] ?? ""}
+                            >
+                              <option value="">Choose a target</option>
+                              <option disabled={draft.dimensions.length >= MAX_DIMENSIONS} value="new">Create a new alias</option>
+                              {suggestion.reusableTableIds.map((tableId) => {
+                                const table = tablesById.get(tableId);
+                                return <option key={tableId} value={tableId}>{table?.alias || table?.table || tableId}</option>;
+                              })}
+                            </select>
+                          </label>
+                        ) : null}
+                        <button
+                          aria-label={`Add detected relationship ${equality}`}
+                          className="rv-data-model-builder__secondary-button"
+                          onClick={() => handleAcceptSuggestions([suggestion.id])}
+                          type="button"
+                        >
+                          Add relationship
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+            {relationshipSuggestionsOmitted ? (
+              <p className="rv-data-model-builder__inline-state" role="status">
+                Some detected relationships were omitted because the discovery limit or remaining dimension capacity was reached.
+              </p>
+            ) : null}
             <div className="rv-data-model-builder__repeatable-list">
-              {!draft.relationships.length ? <p className="rv-data-model-builder__inline-state">Add a dimension to define its direct fact relationship.</p> : null}
+              {!draft.relationships.length ? <p className="rv-data-model-builder__inline-state">Add or detect a relationship to connect dimensions to the fact root.</p> : null}
               {draft.relationships.map((relationship, index) => {
-                const dimension = draft.dimensions.find((item) => item.id === relationship.dimension_id);
-                if (!dimension) {
-                  return null;
-                }
-                const factColumns = schemaObject(draft.fact_table?.connection_id ?? "", draft.fact_table?.table ?? "")?.columns ?? [];
-                const dimensionColumns = schemaObject(dimension.connection_id, dimension.table)?.columns ?? [];
+                const parent = tablesById.get(relationship.parent_table_id);
+                const child = tablesById.get(relationship.child_table_id);
+                const parentColumns = schemaObject(parent?.connection_id ?? "", parent?.table ?? "")?.columns ?? [];
+                const childColumns = schemaObject(child?.connection_id ?? "", child?.table ?? "")?.columns ?? [];
+                const incomingIds = new Set(
+                  draft.relationships
+                    .filter((item) => item.id !== relationship.id)
+                    .map((item) => item.child_table_id)
+                );
+                const relationshipsWithoutCurrent = draft.relationships.filter((item) => item.id !== relationship.id);
+                const connectedWithoutCurrent = connectedTableIds({ ...draft, relationships: relationshipsWithoutCurrent });
+                const childDescendants = descendantTableIds(draft, relationship.child_table_id, relationship.id);
                 return (
                   <fieldset className="rv-data-model-builder__repeatable" key={relationship.id}>
-                    <legend>{draft.fact_table?.alias || "fact"} → {dimension.alias || `dimension ${index + 1}`}</legend>
-                    <label className="rv-data-model-builder__field rv-data-model-builder__join-type">
-                      <span>Join type</span>
-                      <select aria-label={`Relationship ${index + 1} join type`} value={relationship.join_type} onChange={(event) => updateRelationship(relationship.id, (current) => ({ ...current, join_type: event.target.value as "left" | "inner" }))}>
-                        <option value="left">Left join</option><option value="inner">Inner join</option>
-                      </select>
-                    </label>
+                    <legend>{parent?.alias || "Unresolved parent"} → {child?.alias || `relationship ${index + 1}`}</legend>
+                    <button aria-label={`Remove relationship ${index + 1}`} className="rv-data-model-builder__remove-button" onClick={() => mutateDraft((current) => ({ ...current, relationships: current.relationships.filter((item) => item.id !== relationship.id) }))} type="button">Remove</button>
+                    <div className="rv-data-model-builder__field-grid rv-data-model-builder__field-grid--relationship">
+                      <label className="rv-data-model-builder__field">
+                        <span>From table</span>
+                        <select aria-label={`Relationship ${index + 1} parent table`} value={relationship.parent_table_id} onChange={(event) => handleRelationshipEndpointChange(relationship, "parent_table_id", event.target.value)}>
+                          <option value="">Select a connected table</option>
+                          {modelTables(draft).filter(
+                            (table) => (connectedWithoutCurrent.has(table.id) || table.id === relationship.parent_table_id)
+                              && table.id !== relationship.child_table_id
+                              && !childDescendants.has(table.id)
+                          ).map((table) => <option key={table.id} value={table.id}>{table.alias || table.table || "Unnamed table"}</option>)}
+                        </select>
+                      </label>
+                      <label className="rv-data-model-builder__field">
+                        <span>Joined table</span>
+                        <select aria-label={`Relationship ${index + 1} child table`} value={relationship.child_table_id} onChange={(event) => handleRelationshipEndpointChange(relationship, "child_table_id", event.target.value)}>
+                          <option value="">Select an unconnected dimension</option>
+                          {draft.dimensions.filter(
+                            (dimension) => !incomingIds.has(dimension.id)
+                              && dimension.id !== relationship.parent_table_id
+                              && !descendantTableIds(draft, dimension.id, relationship.id).has(relationship.parent_table_id)
+                          ).map((dimension) => <option key={dimension.id} value={dimension.id}>{dimension.alias || dimension.table || "Unnamed dimension"}</option>)}
+                        </select>
+                      </label>
+                      <label className="rv-data-model-builder__field">
+                        <span>Join type</span>
+                        <select aria-label={`Relationship ${index + 1} join type`} value={relationship.join_type} onChange={(event) => updateRelationship(relationship.id, (current) => ({ ...current, join_type: event.target.value as "left" | "inner" }))}>
+                          <option value="left">Left join</option><option value="inner">Inner join</option>
+                        </select>
+                      </label>
+                    </div>
                     {relationship.join_type === "inner" ? <p className="rv-data-model-builder__inner-warning">Inner joins can filter fact rows. Compile-only testing cannot measure row retention.</p> : null}
                     <div className="rv-data-model-builder__key-pairs">
                       {relationship.key_pairs.map((pair, pairIndex) => (
                         <div className="rv-data-model-builder__key-pair" key={`${relationship.id}-${pairIndex}`}>
                           <label className="rv-data-model-builder__field">
-                            <span>Fact column</span>
-                            <select aria-label={`Relationship ${index + 1} fact column ${pairIndex + 1}`} value={pair.fact_column} onChange={(event) => updateRelationship(relationship.id, (current) => ({
+                            <span>Parent column</span>
+                            <select aria-label={`Relationship ${index + 1} parent column ${pairIndex + 1}`} value={pair.parent_column} onChange={(event) => updateRelationship(relationship.id, (current) => ({
                               ...current,
-                              key_pairs: current.key_pairs.map((item, itemIndex) => itemIndex === pairIndex ? { ...item, fact_column: event.target.value } : item)
+                              key_pairs: current.key_pairs.map((item, itemIndex) => itemIndex === pairIndex ? { ...item, parent_column: event.target.value } : item)
                             }))}>
-                              <option value="">Select fact column</option>
-                              {pair.fact_column && !factColumns.some((column) => column.name === pair.fact_column) ? <option value={pair.fact_column}>{pair.fact_column} · unavailable</option> : null}
-                              {factColumns.map((column) => <option key={column.name} value={column.name}>{column.name}</option>)}
+                              <option value="">Select parent column</option>
+                              {pair.parent_column && !parentColumns.some((column) => column.name === pair.parent_column) ? <option value={pair.parent_column}>{pair.parent_column} · unavailable</option> : null}
+                              {parentColumns.map((column) => <option key={column.name} value={column.name}>{column.name}</option>)}
                             </select>
                           </label>
                           <span aria-hidden="true" className="rv-data-model-builder__equals">=</span>
                           <label className="rv-data-model-builder__field">
-                            <span>Dimension column</span>
-                            <select aria-label={`Relationship ${index + 1} dimension column ${pairIndex + 1}`} value={pair.dimension_column} onChange={(event) => updateRelationship(relationship.id, (current) => ({
+                            <span>Child column</span>
+                            <select aria-label={`Relationship ${index + 1} child column ${pairIndex + 1}`} value={pair.child_column} onChange={(event) => updateRelationship(relationship.id, (current) => ({
                               ...current,
-                              key_pairs: current.key_pairs.map((item, itemIndex) => itemIndex === pairIndex ? { ...item, dimension_column: event.target.value } : item)
+                              key_pairs: current.key_pairs.map((item, itemIndex) => itemIndex === pairIndex ? { ...item, child_column: event.target.value } : item)
                             }))}>
-                              <option value="">Select dimension column</option>
-                              {pair.dimension_column && !dimensionColumns.some((column) => column.name === pair.dimension_column) ? <option value={pair.dimension_column}>{pair.dimension_column} · unavailable</option> : null}
-                              {dimensionColumns.map((column) => <option key={column.name} value={column.name}>{column.name}</option>)}
+                              <option value="">Select child column</option>
+                              {pair.child_column && !childColumns.some((column) => column.name === pair.child_column) ? <option value={pair.child_column}>{pair.child_column} · unavailable</option> : null}
+                              {childColumns.map((column) => <option key={column.name} value={column.name}>{column.name}</option>)}
                             </select>
                           </label>
-                          <button aria-label={`Remove key pair ${pairIndex + 1} for ${dimension.alias}`} className="rv-data-model-builder__icon-button" onClick={() => updateRelationship(relationship.id, (current) => ({ ...current, key_pairs: current.key_pairs.filter((_, itemIndex) => itemIndex !== pairIndex) }))} type="button">×</button>
+                          <button aria-label={`Remove key pair ${pairIndex + 1} for ${child?.alias || `relationship ${index + 1}`}`} className="rv-data-model-builder__icon-button" onClick={() => updateRelationship(relationship.id, (current) => ({ ...current, key_pairs: current.key_pairs.filter((_, itemIndex) => itemIndex !== pairIndex) }))} type="button">×</button>
                         </div>
                       ))}
                     </div>
-                    <button aria-label={`Add key pair for ${dimension.alias}`} className="rv-data-model-builder__secondary-button" disabled={!draft.fact_table?.table || !dimension.table} onClick={() => handleAddKeyPair(relationship, dimension)} type="button">Add key pair</button>
+                    <button aria-label={`Add key pair for ${child?.alias || `relationship ${index + 1}`}`} className="rv-data-model-builder__secondary-button" disabled={!parent?.table || !child?.table} onClick={() => handleAddKeyPair(relationship)} type="button">Add key pair</button>
                   </fieldset>
                 );
               })}
             </div>
+            <button
+              className="rv-data-model-builder__secondary-button"
+              disabled={!draft.fact_table || !draft.dimensions.some((dimension) => !draft.relationships.some((relationship) => relationship.child_table_id === dimension.id))}
+              onClick={handleAddRelationship}
+              type="button"
+            >
+              Add relationship
+            </button>
           </BuilderSection>
 
           <BuilderSection
@@ -1121,19 +1688,26 @@ export function DataModelBuilder({ modelId, onDataModelDropped, onDataModelSaved
 
         <aside aria-label="Model preview" className="rv-data-model-builder__inspector" role="region">
           <section className="rv-data-model-builder__inspector-card">
-            <div className="rv-data-model-builder__inspector-header"><strong>Star map</strong><span>{1 + draft.dimensions.length} objects</span></div>
+            <div className="rv-data-model-builder__inspector-header"><strong>Model map</strong><span>{modelMapRows.length} connected</span></div>
             <div className="rv-data-model-builder__star-map">
               <div className="rv-data-model-builder__star-fact"><small>Fact</small><strong>{draft.fact_table?.alias || "Fact table not selected"}</strong></div>
               <div className="rv-data-model-builder__star-dimensions">
-                {draft.dimensions.length ? draft.dimensions.map((dimension) => {
-                  const relationship = draft.relationships.find((item) => item.dimension_id === dimension.id);
+                {modelMapRows.length ? modelMapRows.map(({ relationship, depth }) => {
+                  const parent = tablesById.get(relationship.parent_table_id);
+                  const child = tablesById.get(relationship.child_table_id);
                   return (
-                    <div className="rv-data-model-builder__star-relationship" key={dimension.id}>
+                    <div className="rv-data-model-builder__star-relationship" key={relationship.id} style={{ marginLeft: `${depth * 12}px` }}>
                       <span className="rv-data-model-builder__star-line" /><span className="rv-data-model-builder__join-badge">{relationship?.join_type ?? "left"}</span>
-                      <div><small>Dimension</small><strong>{dimension.alias || "Unnamed dimension"}</strong></div>
+                      <div><small>{parent?.alias || "Unresolved"} →</small><strong>{child?.alias || "Unresolved dimension"}</strong></div>
                     </div>
                   );
-                }) : <p>Add dimensions to grow the star.</p>}
+                }) : <p>Add or detect relationships to grow the model.</p>}
+                {draft.dimensions.filter((dimension) => !connectedIds.has(dimension.id)).map((dimension) => (
+                  <div className="rv-data-model-builder__star-relationship rv-data-model-builder__star-relationship--disconnected" key={`disconnected-${dimension.id}`}>
+                    <span className="rv-data-model-builder__star-line" /><span className="rv-data-model-builder__join-badge">repair</span>
+                    <div><small>Disconnected</small><strong>{dimension.alias || "Unnamed dimension"}</strong></div>
+                  </div>
+                ))}
               </div>
             </div>
           </section>
@@ -1146,7 +1720,7 @@ export function DataModelBuilder({ modelId, onDataModelDropped, onDataModelSaved
               {diagnostics.map((item) => <p data-severity={item.severity} key={`${item.severity}-${item.code}-${item.message}`}><span />{item.message}</p>)}
               {!diagnostics.length && !completenessGaps.length ? <p data-severity="success"><span />No structural gaps are visible. Run Test model for authoritative validation.</p> : null}
             </div>
-            <p className="rv-data-model-builder__compile-note"><strong>Compile-only test.</strong> Testing does not validate row retention, fanout, unmatched dimensions, or cardinality.</p>
+            <p className="rv-data-model-builder__compile-note"><strong>Compile-only test.</strong> Testing does not validate multi-hop filtering, row retention, fanout, unmatched dimensions, or cardinality.</p>
           </section>
         </aside>
       </div>

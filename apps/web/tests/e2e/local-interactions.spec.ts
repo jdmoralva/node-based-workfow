@@ -248,7 +248,7 @@ test.describe("local login and shell interactions", () => {
       id: "model_1",
       name: "Portfolio Star",
       description: "",
-      model: { sources: [], fact_table: null, dimensions: [], relationships: [], business_rules: [], measures: [], metadata: {} },
+      model: { schema_version: 2, sources: [], fact_table: null, dimensions: [], relationships: [], business_rules: [], measures: [], metadata: {} },
       test_status: "draft",
       diagnostics_stale: false,
       last_tested_at: null,
@@ -309,7 +309,7 @@ test.describe("local login and shell interactions", () => {
       const payload = route.request().postDataJSON() as { model: SavedDataModel["model"] };
       expect(payload.model.fact_table?.table).toBe("loans");
       expect(payload.model.dimensions[0]?.table).toBe("customers");
-      expect(payload.model.relationships[0]?.key_pairs).toEqual([{ fact_column: "customer_id", dimension_column: "customer_id" }]);
+      expect(payload.model.relationships[0]?.key_pairs).toEqual([{ parent_column: "customer_id", child_column: "customer_id" }]);
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -378,9 +378,10 @@ test.describe("local login and shell interactions", () => {
     await page.getByLabel("Fact table or view").selectOption("loans");
     await page.getByRole("button", { name: "Add dimension" }).click();
     await page.getByLabel("Dimension 1 table or view").selectOption("customers");
+    await page.getByRole("button", { name: "Add relationship", exact: true }).click();
     await page.getByRole("button", { name: "Add key pair for dim_customers" }).click();
-    await page.getByLabel("Relationship 1 fact column 1").selectOption("customer_id");
-    await page.getByLabel("Relationship 1 dimension column 1").selectOption("customer_id");
+    await page.getByLabel("Relationship 1 parent column 1").selectOption("customer_id");
+    await page.getByLabel("Relationship 1 child column 1").selectOption("customer_id");
 
     await page.getByRole("button", { name: "Test model" }).click();
     await expect(page.getByText("Draft test passed. Save and retest to persist the tested status.")).toBeVisible({ timeout: 2000 });
@@ -415,10 +416,11 @@ test.describe("local login and shell interactions", () => {
       name: "Repairable Star",
       description: "",
       model: {
+        schema_version: 2 as const,
         sources: [{ connection_id: "conn_missing", alias: "portfolio", metadata: {} }],
-        fact_table: { connection_id: "conn_missing", table: "loans", object_type: "table", alias: "fact_loans", grain: null, primary_key: ["account_id"], metadata: {} },
+        fact_table: { id: "fact_loans", connection_id: "conn_missing", table: "loans", object_type: "table", alias: "fact_loans", grain: null, primary_key: ["account_id"], metadata: {} },
         dimensions: [{ id: "dim_customers", connection_id: "conn_missing", table: "customers", object_type: "table", alias: "dim_customers", primary_key: ["customer_id"], metadata: {} }],
-        relationships: [{ id: "rel_customers", dimension_id: "dim_customers", join_type: "left", key_pairs: [{ fact_column: "customer_id", dimension_column: "customer_id" }], metadata: {} }],
+        relationships: [{ id: "rel_customers", parent_table_id: "fact_loans", child_table_id: "dim_customers", join_type: "left", key_pairs: [{ parent_column: "customer_id", child_column: "customer_id" }], metadata: {} }],
         business_rules: [{ id: "rule_1", name: "rule", expression: "upper(dim_customers.name)", output_type: "text", metadata: {} }],
         measures: [],
         metadata: {}

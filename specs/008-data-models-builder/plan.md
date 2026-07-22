@@ -1,12 +1,12 @@
 # Implementation Plan: CreditModeler Data Models Builder
 
-**Branch**: `main` | **Date**: 2026-07-18 | **Spec**: [spec.md](./spec.md)
+**Branch**: `main` | **Date**: 2026-07-21 | **Spec**: [spec.md](./spec.md)
 
-**Input**: Feature specification from `specs/008-data-models-builder/spec.md`; implementation detail source from `docs/nfr/CreditModeler Data Models Builder Multi-Phase Plan.md`
+**Input**: Feature specification from `specs/008-data-models-builder/spec.md`; approved topology design from `docs/superpowers/specs/2026-07-21-rooted-data-model-relationships-design.md`; implementation detail source from `docs/nfr/CreditModeler Data Models Builder Multi-Phase Plan.md`
 
 ## Summary
 
-Build the CreditModeler workbench `Data Models` capability as an authenticated full-stack feature. The backend will persist per-user analytical data model metadata, expose CRUD, schema-inspection, and zero-row compilation-test operations, validate strict star-schema definitions across saved SQLite `Connections`, and return safe structured diagnostics without exposing generated SQL, file paths, stack traces, or row data. The frontend will replace static Data Models examples with dynamic saved models and render a canvas-panel Data Model Builder for draft save, source selection, fact/dimension/relationship/rule configuration, test, update, repair, and drop flows.
+Build the CreditModeler workbench `Data Models` capability as an authenticated full-stack feature. The backend persists per-user analytical data model metadata, exposes CRUD, safe foreign-key-aware schema inspection, and zero-row compilation-test operations, normalizes stored legacy definitions to a strict version-2 rooted-tree contract, and returns safe structured diagnostics without exposing generated SQL, file paths, stack traces, or row data. The frontend provides a review-first relationship workbench, explicit parent/child table-instance edges, a rooted Model map, and the existing draft save, source, rule, test, repair, and lifecycle flows.
 
 Implementation follows the user-provided multi-phase plan, with story-specific tests written and observed failing before each story's implementation tasks:
 
@@ -23,6 +23,10 @@ Implementation follows the user-provided multi-phase plan, with story-specific t
 11. Styling and responsive layout.
 12. Frontend coverage completion.
 13. Verification.
+14. Active 008 documentation reconciliation prerequisite.
+15. Version-2 backend topology and compatibility changes using TDD.
+16. Review-first frontend relationship changes using TDD.
+17. Chinook browser acceptance and full verification.
 
 ## Technical Context
 
@@ -30,7 +34,7 @@ Implementation follows the user-provided multi-phase plan, with story-specific t
 
 **Primary Dependencies**: FastAPI, Pydantic Settings, SQLAlchemy 2.x, Alembic, pytest, httpx, `sqlglot` for SQLite-expression parsing and rendering; Next.js 15.0.3, React, Vitest, Testing Library, Playwright
 
-**Storage**: Existing application database through SQLAlchemy/Alembic for saved data model metadata and persisted diagnostics; existing saved SQLite Connections provide source references; source SQLite files remain resolved through the Connections feature rather than user-entered paths
+**Storage**: Existing application database through SQLAlchemy/Alembic for saved data model metadata and persisted diagnostics; definitions remain JSON, so version-2 topology requires no application-database migration; existing saved SQLite Connections provide source references; source SQLite files remain resolved through the Connections feature rather than user-entered paths
 
 **Testing**: `pytest` in `apps/api`; `npm run test`, `npm run lint`, and targeted Playwright visual/e2e commands in `apps/web`
 
@@ -42,7 +46,7 @@ Implementation follows the user-provided multi-phase plan, with story-specific t
 
 **Constraints**: Only saved user-owned SQLite Connections can be modeled; generated SQL, absolute filesystem paths, stack traces, raw database errors, sample rows, row counts, profiling metrics, and SQLite system objects must never be exposed; tests validate compilation only and must warn that row retention, fanout, unmatched dimensions, and cardinality are not validated; model names are immutable after creation; last successful save wins for concurrent edits; business rule scalar functions are limited to `abs`, `coalesce`, `ifnull`, `lower`, `ltrim`, `max`, `min`, `nullif`, `round`, `rtrim`, `substr`, `trim`, and `upper`
 
-**Scale/Scope**: First-stage multi-SQLite strict star-schema modeling only; one fact table; direct fact-to-dimension relationships only; no snowflake schemas, analytical workloads, profiling, measures, materialized datasets, graph editing, non-SQLite sources, or advanced semantic-layer governance; per-model caps are 5 source connections, 25 dimensions, and 50 business rules
+**Scale/Scope**: Multi-SQLite rooted dimensional trees only; one fact root, up to 25 dimension instances, explicit parent/child edges, and one incoming edge and one root path per dimension; no arbitrary cyclic or multi-parent graph, free-form graph editing, analytical workloads, profiling, measures, materialized datasets, non-SQLite sources, or advanced semantic-layer governance; per-model caps are 5 source connections, 25 dimensions, and 50 business rules
 
 ## Constitution Check
 
@@ -52,18 +56,18 @@ The repository has `.specify/memory/constitution.md`, but it currently contains 
 
 Pre-design gates:
 
-- PASS: Source-of-truth feature scope is captured in `spec.md`; implementation detail source is the user-provided Data Models NFR multi-phase plan.
+- PASS: Source-of-truth feature scope is captured in `spec.md`; the approved rooted-relationships design supersedes prior topology constraints; implementation detail also draws from the user-provided Data Models NFR multi-phase plan.
 - PASS: No unresolved `NEEDS CLARIFICATION` markers remain in the spec or this plan.
 - PASS: The current constitution artifact was checked and contains no project-specific mandatory gates beyond placeholder text.
 - PASS: The plan preserves the security boundary: only saved user-owned Connections can be referenced, generated SQL and filesystem paths are never exposed, and unsafe business rule expressions are rejected.
-- PASS: The plan preserves product scope: multi-SQLite strict star-schema compilation checks only; no profiling, measures, materialization, analytical workloads, non-SQLite engines, or snowflake modeling.
+- PASS: The plan preserves product scope: multi-SQLite rooted-tree compilation checks only; no arbitrary graph, profiling, measures, materialization, analytical workloads, or non-SQLite engines.
 - PASS: Verification is per-area, matching the repo shape in `AGENTS.md`.
 
 Post-design gates:
 
 - PASS: `research.md`, `data-model.md`, `contracts/data-models-api.md`, and `quickstart.md` reflect the same scope and constraints.
 - PASS: API contracts include authenticated ownership checks, safe schema metadata, CRUD/test boundaries, immutable-name behavior, status/diagnostics semantics, missing-connection repair expectations, and safe error requirements.
-- PASS: Data model design includes stable identity, per-user name uniqueness, status transitions, strict star-schema shape, model caps, alias cascade expectations, and persisted diagnostic fields.
+- PASS: Data model design includes schema version 2, stable fact/dimension identity, per-user name uniqueness, rooted-tree topology, deterministic legacy normalization, exact save/test severity, model caps, alias cascade expectations, and persisted diagnostic fields.
 
 ## Project Structure
 
@@ -111,6 +115,8 @@ apps/
 ```
 
 **Structure Decision**: Implement the feature in the existing `apps/api` and `apps/web` applications. Backend data model domain code belongs in a new `apps/api/app/modules/data_models/` module and migration under `apps/api/alembic/versions/`. Frontend types, client helpers, workbench integration, and builder UI belong in `apps/web/features/creditmodeler/`, with tree configuration in `apps/web/config/tree-menu.ts` and layout styles in `apps/web/app/globals.css` only when needed.
+
+The version-2 topology extension does not change API URLs, Next.js proxy routes, the workbench route, object-tree composition, or the relational `AnalyticalDataModel` storage table.
 
 ## Complexity Tracking
 
@@ -164,20 +170,26 @@ Expose safe table/view/column metadata for saved Connections.
 - Open SQLite files in read-only mode.
 - Return user tables and views only; exclude SQLite system objects.
 - Return declared column type, nullable flag when available, and primary-key flag.
+- Group SQLite foreign keys by declaration ID and sequence and return safe ordered local/referenced identifier pairs.
+- Resolve omitted referenced columns only against an identifiable ordered primary key with matching cardinality; otherwise omit the declaration from suggestions.
+- Return `foreign_keys: []` for views and exclude unresolved, missing, unsafe, and system-object declarations.
 - Ensure no sample rows, counts, profiling metrics, generated SQL, absolute paths, or raw errors are exposed.
 
 ### Phase 4: Model Validation Service
 
 Validate data model definitions independently of SQL compilation.
 
-- Validate strict model schemas and reject unknown core keys.
-- Validate stable generated IDs for dimensions, relationships, and business rules.
-- Validate duplicate IDs and aliases.
+- Validate version-2 model schemas and reject unknown core keys, unknown versions, mixed relationship fields, and version-1 public write payloads.
+- Normalize persisted version-1 definitions at one storage-read boundary before strict version-2 validation; make normalization deterministic and idempotent and rewrite only on successful save.
+- Assign a stable ID to the fact and retain stable generated IDs for dimensions, relationships, and business rules.
+- Validate duplicate IDs and one shared, trimmed, case-insensitive table-alias namespace.
 - Enforce caps of 5 sources, 25 dimensions, and 50 business rules.
 - Validate one fact table when testing.
 - Validate role-playing dimensions by alias.
-- Validate strict star-schema relationships and reject snowflake relationships.
-- Validate one relationship per dimension alias.
+- Validate explicit `parent_table_id` and `child_table_id` relationships as an unordered rooted tree.
+- Reject unknown endpoints, an incoming fact edge, self-links, cycles, duplicate incoming edges, duplicate endpoint pairs, and disconnected topology at test time.
+- Allow saveable repair gaps while blocking malformed topology according to the approved severity matrix.
+- Validate exactly one incoming relationship and one fact-root path per dimension for testability.
 - Validate single and composite join keys.
 - Validate allowed join types and inner-join warnings.
 - Reject non-empty `measures`.
@@ -193,17 +205,18 @@ Add parser-backed rule validation and expression rewriting.
 - Validate column references against fact and joined dimension aliases.
 - Validate function calls against the approved scalar allowlist: `abs`, `coalesce`, `ifnull`, `lower`, `ltrim`, `max`, `min`, `nullif`, `round`, `rtrim`, `substr`, `trim`, and `upper`.
 - Render validated expressions back to SQLite-compatible expressions for dry-run compilation.
-- Rewrite relationship alias references and business rule table alias qualifiers when aliases are edited; preserve and diagnose expressions that cannot be rewritten unambiguously.
+- Keep ID-based relationship endpoints stable when aliases change; rewrite business rule table qualifiers only when unambiguous and otherwise preserve and diagnose the expression.
 - Preserve invalid rules and report structured diagnostics instead of deleting them.
 
 ### Phase 6: Query Compiler And Dry-Run Test
 
-Compile the star schema and run zero-row SQLite dry-run tests.
+Compile the rooted dimensional tree and run zero-row SQLite dry-run tests.
 
 - Build a compiler that quotes identifiers and isolates generated SQL from API responses.
 - Use the fact Connection as the main read-only SQLite connection.
 - Attach additional referenced SQLite files read-only using backend-generated aliases.
-- Compile fact table, dimensions, relationships, join keys, and row-level business rules.
+- Build adjacency independently of relationship payload order and traverse root first, sorting siblings by child alias, child table-instance ID, and relationship ID.
+- Join each child only after its parent is present; compile endpoint-neutral composite key pairs and business rules across all connected aliases.
 - Execute a zero-row query only.
 - Return all deterministic validation errors before dry-run.
 - Return any compile failure as a structured safe error.
@@ -219,12 +232,14 @@ Confirm backend contract and integration coverage. Story-specific backend tests 
 - Update rejects changed names.
 - List default-all and single-status filter behavior.
 - Delete removes saved metadata.
-- Schema endpoint returns tables/views/columns only and excludes system objects and sensitive details.
-- Validation allows role-playing dimensions and composite keys.
-- Validation rejects snowflake relationships, non-empty measures, over-cap models, duplicate aliases/IDs, and unsupported joins.
+- Schema endpoint returns safe tables/views/columns/grouped foreign keys and excludes system objects and sensitive details.
+- Storage-read normalization covers complete and partial legacy definitions, fact-ID collisions, deterministic placeholders, idempotence, and normalization-only saves.
+- Public write/test contracts reject legacy, mixed, unknown-version, and saved-test-body payloads and always respond with version 2.
+- Validation accepts role-playing dimensions, dimension-to-dimension edges, and composite keys in a complete rooted tree.
+- Validation distinguishes malformed save-blocking topology from saveable incomplete/disconnected repair states and rejects non-empty measures, over-cap models, duplicate aliases/IDs, and unsupported joins.
 - Business rule parser accepts allowed expressions and rejects unsafe expressions.
 - Alias cascade rewrites business rule qualifiers.
-- Dry-run compiles across multiple attached SQLite files.
+- Dry-run compiles the complete Chinook-shaped tree across multiple attached SQLite files when relationships arrive out of order.
 - Saved test persists status, timestamps, warnings, and errors, preserving prior successful timestamp after later failure.
 - Generated SQL and absolute paths are never returned.
 
@@ -232,7 +247,7 @@ Confirm backend contract and integration coverage. Story-specific backend tests 
 
 Add typed frontend helpers.
 
-- Add TypeScript types for saved data models, model definitions, schema metadata, diagnostics, statuses, and test responses.
+- Add TypeScript types for schema-version-2 saved data models, stable fact identity, explicit relationship endpoints, safe grouped foreign-key metadata, diagnostics, statuses, and test responses.
 - Add client helpers for list, create, read, update, delete, test, and schema inspection.
 - Reuse existing API base URL and credential pattern.
 - Normalize backend validation and failure messages for UI display.
@@ -253,7 +268,7 @@ Make `Data Models` dynamic like `Connections`.
 
 ### Phase 10: Data Model Builder UI
 
-Implement the structured star-schema workspace inside the existing canvas frame.
+Implement the structured rooted-model workspace inside the existing canvas frame.
 
 - Add `DataModelBuilder`.
 - Render new and existing modes.
@@ -262,14 +277,18 @@ Implement the structured star-schema workspace inside the existing canvas frame.
 - Keep Test clickable for incomplete drafts and render structured completeness diagnostics.
 - Load saved Connections for source selection.
 - Load schema metadata by saved Connection ID.
-- Configure fact table, dimensions, relationships, and business rules.
+- Configure fact root, dimensions, explicit endpoint relationships, and business rules.
+- Derive deterministic breadth-first relationship suggestions from safe same-connection foreign keys without persisting suggestions or changing the draft before confirmation.
+- Show prerequisite-aware individual and atomic batch acceptance; revalidate the full selection before root-first insertion.
+- Create or explicitly reuse dimension aliases during acceptance, handling alias collisions, ambiguity, missing primary keys, depth limits, and capacity omissions visibly.
 - Support role-playing dimensions through aliases.
 - Support composite relationship key pairs.
 - Show static warnings for inner joins and zero-row limitation.
 - Show structured diagnostics and stale diagnostics notices.
 - Allow replacement of missing Connections while preserving configuration where possible.
 - Preserve invalid business rules and show validation diagnostics.
-- Render a simple star-schema preview.
+- Render a read-only indented Model map with root paths, edge health, focus navigation, and a disconnected repair group.
+- Keep manual endpoint-aware relationship cards and branch/source destructive-edit confirmations available.
 - Implement Test, Save, and Drop actions with confirmation for Drop.
 - Apply last-save-wins semantics for concurrent saves.
 
@@ -301,9 +320,14 @@ Confirm frontend unit and interaction coverage. Story-specific frontend tests ar
 - Missing Connection diagnostics are visible.
 - Missing Connection replacement preserves configuration where possible.
 - Inner join warning is visible.
+- Chinook suggestions are ordered root first, stay advisory until confirmed, and exclude reverse child transactions and unrelated tables.
+- Deep-suggestion prerequisite closure and stale/over-cap batch rejection are atomic.
+- Manual dimension-to-dimension relationships work while immediate self-link, cycle, and second-parent choices are prevented.
+- Connected and disconnected branches render and focus the matching editor without horizontal page scrolling.
+- Intermediate-edge, table, fact, and source removal preserve or remove descendants exactly as confirmed without dangling endpoint IDs or lost business rules.
 - Existing `Connections` behavior remains intact.
 
-### Phase 13: Verification
+### Phase 13: Baseline Verification
 
 Run focused verification from the relevant app directories.
 
@@ -320,3 +344,51 @@ npm run test:visual:desktop
 Run visual verification when workbench layout or CSS changes affect geometry. Protected-route Playwright checks remain backend-auth gated according to the existing app convention.
 
 During local acceptance verification, confirm list, save, update, drop, schema metadata, and validation feedback are visible within 2 seconds, and zero-row dry-run tests complete within 5 seconds for the MVP caps of 5 source connections, 25 dimensions, and 50 business rules.
+
+### Phase 14: Approved Design Documentation Prerequisite
+
+Before changing production code, reconcile `spec.md`, this plan, `data-model.md`, `contracts/data-models-api.md`, `tasks.md`, `research.md`, `quickstart.md`, and `checklists/requirements.md` with the approved rooted-relationships design. Search all eight active documents and remove any requirement that constrains relationships to one topology level or rejects a valid dimension-to-dimension tree edge. Production implementation remains blocked until this prerequisite is complete.
+
+### Phase 15: Version-2 Backend Topology And Compatibility
+
+Follow red-green-refactor for each focused behavior; tests use deterministic temporary Chinook-shaped SQLite databases rather than local untracked data.
+
+- Add failing contract and integration tests for deterministic, collision-free, idempotent storage-read normalization of complete and every currently saveable partial version-1 shape.
+- Add failing tests proving create, update, and unsaved test accept version 2 only; saved test accepts no body; unknown versions and mixed relationship fields are rejected; all model responses are normalized version 2.
+- Add failing tests proving a semantically unchanged legacy save rewrites storage without changing diagnostics, stale state, status, or test timestamps.
+- Add failing inspection tests for grouped single/composite SQLite foreign keys, ordered-primary-key resolution, view behavior, and sensitive metadata exclusion.
+- Add failing validation and status tests for all rooted-tree invariants and the exact save-blocking, saveable-gap, test-error, and warning classes in the approved severity table.
+- Add failing compiler tests for the complete Chinook tree, out-of-order relationships, deterministic sibling/diagnostic ordering, role-playing aliases, composite keys, and manual cross-connection edges.
+- Implement the minimum version-2 schemas, storage-read normalizer, safe foreign-key inspection, rooted validation/status logic, and deterministic compiler changes needed to pass each test, refactoring only while green.
+
+Create, update, and unsaved-test bodies are strict version 2. The saved-model test endpoint rejects any definition body and tests only the canonical saved definition; a dirty draft must use unsaved test and cannot mark an older saved definition tested. Repairable gaps round-trip as drafts, while malformed topology is save-blocking. Unknown endpoint IDs are never persisted after a destructive edit.
+
+### Phase 16: Review-First Frontend Relationships
+
+Follow red-green-refactor for each interaction and derived-state behavior.
+
+- Add failing unit tests for version-2 draft initialization, stable fact IDs, normalized hydration, safe foreign-key typing, and canonical dirty-state comparison.
+- Add failing deterministic discovery tests for root-first Chinook traversal, per-path identity, alias-path reuse, cycles, dangling targets, the 25-edge depth bound, capacity reporting, and candidate ordering.
+- Add failing tests for advisory-only suggestions, deep prerequisite selection, locked prerequisites, atomic stale/ambiguous/over-cap batch rejection, alias creation/reuse choice, primary-key gaps, and stale provenance.
+- Add failing interaction tests for endpoint-aware manual relationships, compatible-key preservation, invalid-key clearing, rooted map focus, connected/disconnected rendering, and path-specific diagnostics.
+- Add failing destructive-edit tests for intermediate edges, table branches, clearing/replacing the fact, overlapping source impact sets, preserved business rules, and cancellation without partial mutation.
+- Add failing responsive/accessibility tests for keyboard review and confirmations, polite action feedback, relationship key stacking, and suggestions/cards preceding the Model map on narrow viewports.
+- Implement the minimum types, review queue, relationship cards, Model map, destructive-edit flows, and styling needed to pass each test, refactoring only while green.
+
+### Phase 17: Chinook Acceptance And Verification
+
+- Verify the eight approved left-join edges and nine table instances from `InvoiceLine` through `Invoice`, `Customer`, `Employee`, `Track`, `Album`, `Artist`, `Genre`, and `MediaType`.
+- Verify outbound local-to-referenced discovery does not propose `Playlist`, `PlaylistTrack`, or unrelated tables.
+- Test and save the completed model, reopen it, edit a multi-hop edge, observe stale status, and retest.
+- Open a legacy saved model and save it without reconstructing relationships.
+- Run all backend and frontend commands below and repeat the active-document contradiction search.
+
+```powershell
+# apps/api
+pytest
+
+# apps/web
+npm run test
+npm run lint
+npm run test:visual:desktop
+```

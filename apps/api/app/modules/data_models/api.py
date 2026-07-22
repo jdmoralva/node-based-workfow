@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from typing import Any
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
@@ -103,10 +105,13 @@ def delete_data_model(
 @router.post("/{model_id}/test", response_model=DataModelTestResponse)
 def test_saved_data_model(
     model_id: str,
+    payload: dict[str, Any] | None = Body(default=None),
     user: InternalUser = Depends(require_data_model_user),
     db: Session = Depends(get_db_session),
     settings: Settings = Depends(get_settings),
 ) -> DataModelTestResponse:
+    if payload is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Saved model tests do not accept a definition body.")
     try:
         return service.test_saved_model(db, model_id=model_id, user_id=user.id, datasets_root=settings.resolved_datasets_root)
     except service.DataModelNotFoundError as exc:

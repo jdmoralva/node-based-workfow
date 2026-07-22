@@ -28,6 +28,13 @@ export type DataModelSchemaObject = {
   name: string;
   object_type: "table" | "view";
   columns: DataModelSchemaColumn[];
+  foreign_keys?: Array<{
+    referenced_table: string;
+    column_pairs: Array<{
+      local_column: string;
+      referenced_column: string;
+    }>;
+  }>;
 };
 
 export type DataModelConnectionSchemaResponse = {
@@ -43,6 +50,7 @@ export type DataModelSource = {
 };
 
 export type DataModelFactTable = {
+  id: string;
   connection_id: string;
   table: string;
   object_type: "table" | "view";
@@ -64,11 +72,12 @@ export type DataModelDimension = {
 
 export type DataModelRelationship = {
   id: string;
-  dimension_id: string;
+  parent_table_id: string;
+  child_table_id: string;
   join_type: "left" | "inner";
   key_pairs: Array<{
-    fact_column: string;
-    dimension_column: string;
+    parent_column: string;
+    child_column: string;
   }>;
   metadata?: Record<string, unknown>;
 };
@@ -82,6 +91,7 @@ export type DataModelBusinessRule = {
 };
 
 export type DataModelDefinition = {
+  schema_version: 2;
   sources: DataModelSource[];
   fact_table: DataModelFactTable | null;
   dimensions: DataModelDimension[];

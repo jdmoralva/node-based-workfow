@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import datetime
 from typing import Any, Literal
 
@@ -31,10 +32,21 @@ class SchemaColumn(StrictModel):
     primary_key: bool = False
 
 
+class SchemaForeignKeyColumnPair(StrictModel):
+    local_column: str
+    referenced_column: str
+
+
+class SchemaForeignKey(StrictModel):
+    referenced_table: str
+    column_pairs: list[SchemaForeignKeyColumnPair] = Field(default_factory=list)
+
+
 class SchemaObject(StrictModel):
     name: str
     object_type: ObjectType
     columns: list[SchemaColumn] = Field(default_factory=list)
+    foreign_keys: list[SchemaForeignKey] = Field(default_factory=list)
 
 
 class ConnectionSchemaResponse(StrictModel):
@@ -50,6 +62,7 @@ class SourceConnectionReference(StrictModel):
 
 
 class FactTableDefinition(StrictModel):
+    id: str
     connection_id: str
     table: str
     object_type: ObjectType
@@ -70,13 +83,14 @@ class DimensionDefinition(StrictModel):
 
 
 class KeyPairDefinition(StrictModel):
-    fact_column: str
-    dimension_column: str
+    parent_column: str
+    child_column: str
 
 
 class RelationshipDefinition(StrictModel):
     id: str
-    dimension_id: str
+    parent_table_id: str
+    child_table_id: str
     join_type: JoinType = "left"
     key_pairs: list[KeyPairDefinition] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -91,6 +105,7 @@ class BusinessRuleDefinition(StrictModel):
 
 
 class ModelDefinition(StrictModel):
+    schema_version: Literal[2]
     sources: list[SourceConnectionReference] = Field(default_factory=list)
     fact_table: FactTableDefinition | None = None
     dimensions: list[DimensionDefinition] = Field(default_factory=list)
@@ -103,13 +118,13 @@ class ModelDefinition(StrictModel):
 class DataModelCreateRequest(StrictModel):
     name: str
     description: str | None = None
-    model: ModelDefinition = Field(default_factory=ModelDefinition)
+    model: ModelDefinition = Field(default_factory=lambda: ModelDefinition(schema_version=2))
 
 
 class DataModelUpdateRequest(StrictModel):
     name: str
     description: str | None = None
-    model: ModelDefinition = Field(default_factory=ModelDefinition)
+    model: ModelDefinition
 
 
 class SavedDataModelSummary(BaseModel):
@@ -138,7 +153,7 @@ class SavedDataModelResponse(SavedDataModelSummary):
 
 
 class DataModelTestRequest(StrictModel):
-    model: ModelDefinition = Field(default_factory=ModelDefinition)
+    model: ModelDefinition = Field(default_factory=lambda: ModelDefinition(schema_version=2))
 
 
 class DataModelTestResponse(StrictModel):
@@ -146,3 +161,45 @@ class DataModelTestResponse(StrictModel):
     status: DataModelStatus
     errors: list[Diagnostic] = Field(default_factory=list)
     warnings: list[Diagnostic] = Field(default_factory=list)
+
+
+def normalize_persisted_model_definition(raw_model: dict[str, Any]) -> ModelDefinition:
+    data = deepcopy(raw_model)
+    if data.get("schema_version") == 2:
+        return ModelDefinition.model_validate(data)
+    if "schema_version" in data:
+        return ModelDefinition.model_validate(data)
+
+    data["schema_version"] = 2
+    dimensions = data.get("dimensions") or []
+    used_ids = {item.get("id") for item in dimensions if isinstance(item, dict)}
+    root_id = "fact_root"
+    suffix = 1
+    while root_id in used_ids:
+        root_id = f"fact_root_{suffix}"
+        suffix += 1
+
+    relationships = data.get("relationships") or []
+    fact = data.get("fact_table")
+    if isinstance(fact, dict):
+        fact["id"] = root_id
+    elif relationships:
+        data["fact_table"] = {
+            "id": root_id,
+            "connection_id": "",
+            "table": "",
+            "object_type": "table",
+            "alias": "",
+            "grain": None,
+            "primary_key": [],
+            "metadata": {"legacy_placeholder": True},
+        }
+
+    for relationship in relationships:
+        relationship["parent_table_id"] = root_id
+        relationship["child_table_id"] = relationship.pop("dimension_id")
+        for pair in relationship.get("key_pairs", []):
+            pair["parent_column"] = pair.pop("fact_column")
+            pair["child_column"] = pair.pop("dimension_column")
+
+    return ModelDefinition.model_validate(data)

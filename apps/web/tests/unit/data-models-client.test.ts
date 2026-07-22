@@ -4,6 +4,7 @@ import { createDataModel, deleteDataModel, getDataModel, inspectConnectionSchema
 import type { DataModelDefinition } from "@/features/creditmodeler/data-model-types";
 
 const blankModel: DataModelDefinition = {
+  schema_version: 2,
   sources: [],
   fact_table: null,
   dimensions: [],

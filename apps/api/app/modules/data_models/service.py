@@ -11,7 +11,16 @@ from app.modules.data_models.models import AnalyticalDataModel
 from app.modules.data_models.query_compiler import run_zero_row_dry_run
 from app.modules.data_models.rule_parser import validate_business_rules
 from app.modules.data_models.schema_inspection import inspect_connection_schema
-from app.modules.data_models.schemas import DataModelStatus, DataModelTestResponse, Diagnostic, ModelDefinition, SavedDataModelResponse, SavedDataModelsResponse, SavedDataModelSummary
+from app.modules.data_models.schemas import (
+    DataModelStatus,
+    DataModelTestResponse,
+    Diagnostic,
+    ModelDefinition,
+    SavedDataModelResponse,
+    SavedDataModelsResponse,
+    SavedDataModelSummary,
+    normalize_persisted_model_definition,
+)
 from app.modules.data_models.status import calculate_saved_status, mark_after_saved_edit
 from app.modules.data_models.validation import blocking_save_errors, replace_connection_references, validate_model_definition
 
@@ -91,7 +100,12 @@ def update_saved_model(db: Session, *, model_id: str, user_id: str, name: str, d
     if save_errors:
         raise ValueError(save_errors[0].message)
     model_json = model.model_dump(mode="json")
-    if record.description == description and record.model_json == model_json:
+    canonical_record_json = _model_from_record(record).model_dump(mode="json")
+    if record.description == description and canonical_record_json == model_json:
+        if record.model_json != model_json:
+            record.model_json = model_json
+            db.commit()
+            db.refresh(record)
         return record
     previous_status = cast(DataModelStatus, record.test_status)
     record.description = description
@@ -175,7 +189,9 @@ def test_unsaved_model(db: Session, *, user_id: str, model: ModelDefinition, dat
         return DataModelTestResponse(succeeded=False, status="failed", errors=missing_connection_errors, warnings=[])
     validation = validate_model_definition(model)
     known_columns, schema_errors = _collect_schema_context(db, user_id=user_id, model=model, datasets_root=datasets_root)
-    rule_errors = validate_business_rules(model.business_rules, table_columns=known_columns).errors
+    rule_errors = validate_business_rules(
+        sorted(model.business_rules, key=lambda item: item.id.casefold()), table_columns=known_columns
+    ).errors
     errors = [*validation.errors, *schema_errors, *rule_errors]
     warnings = validation.warnings
     if errors:
@@ -206,7 +222,7 @@ def _collect_schema_context(
     errors: list[Diagnostic] = []
     schema_by_connection: dict[str, Any] = {}
     connection_ids = _referenced_connection_ids(model)
-    for connection_id in dict.fromkeys(connection_ids):
+    for connection_id in sorted(set(connection_ids), key=str.casefold):
         connection = connection_repository.get_connection_for_user(db, connection_id=connection_id, user_id=user_id)
         if connection is None:
             continue
@@ -222,23 +238,23 @@ def _collect_schema_context(
                 )
             )
 
-    fact_columns: set[str] | None = None
+    table_columns: dict[str, set[str]] = {}
     if model.fact_table is not None:
         schema = schema_by_connection.get(model.fact_table.connection_id)
         schema_object = next((item for item in schema.objects if item.name == model.fact_table.table), None) if schema is not None else None
         if schema is not None and schema_object is None:
             errors.append(diagnostics.error("unknown_fact_object", "The selected fact table or view is unavailable.", section="fact_table"))
         elif schema_object is not None:
-            fact_columns = {column.name for column in schema_object.columns}
-            known[model.fact_table.alias] = fact_columns
+            columns = {column.name for column in schema_object.columns}
+            table_columns[model.fact_table.id] = columns
+            if model.fact_table.alias:
+                known[model.fact_table.alias] = columns
             if schema_object.object_type != model.fact_table.object_type:
                 errors.append(diagnostics.error("fact_object_type_changed", "The selected fact object type has changed.", section="fact_table"))
-            if any(column not in fact_columns for column in model.fact_table.primary_key):
+            if any(column not in columns for column in model.fact_table.primary_key):
                 errors.append(diagnostics.error("unknown_fact_primary_key", "A selected fact primary-key column is unavailable.", section="fact_table"))
 
-    dimension_columns: dict[str, set[str]] = {}
-    dimensions_by_id = {dimension.id: dimension for dimension in model.dimensions}
-    for dimension in model.dimensions:
+    for dimension in sorted(model.dimensions, key=lambda item: item.id.casefold()):
         schema = schema_by_connection.get(dimension.connection_id)
         schema_object = next((item for item in schema.objects if item.name == dimension.table), None) if schema is not None else None
         if schema is not None and schema_object is None:
@@ -249,8 +265,9 @@ def _collect_schema_context(
         if schema_object is None:
             continue
         columns = {column.name for column in schema_object.columns}
-        known[dimension.alias] = columns
-        dimension_columns[dimension.id] = columns
+        if dimension.alias:
+            known[dimension.alias] = columns
+        table_columns[dimension.id] = columns
         if schema_object.object_type != dimension.object_type:
             errors.append(
                 diagnostics.error("dimension_object_type_changed", "A selected dimension object type has changed.", section="dimensions", id=dimension.id)
@@ -265,26 +282,27 @@ def _collect_schema_context(
                 )
             )
 
-    for relationship in model.relationships:
-        dimension = dimensions_by_id.get(relationship.dimension_id)
-        if dimension is None:
-            continue
-        columns = dimension_columns.get(dimension.id)
+    for relationship in sorted(
+        model.relationships,
+        key=lambda item: (item.parent_table_id.casefold(), item.child_table_id.casefold(), item.id.casefold()),
+    ):
+        parent_columns = table_columns.get(relationship.parent_table_id)
+        child_columns = table_columns.get(relationship.child_table_id)
         for pair in relationship.key_pairs:
-            if fact_columns is not None and pair.fact_column not in fact_columns:
+            if parent_columns is not None and pair.parent_column not in parent_columns:
                 errors.append(
                     diagnostics.error(
-                        "unknown_relationship_fact_column",
-                        "A selected relationship fact column is unavailable.",
+                        "unknown_relationship_parent_column",
+                        "A selected relationship parent column is unavailable.",
                         section="relationships",
                         id=relationship.id,
                     )
                 )
-            if columns is not None and pair.dimension_column not in columns:
+            if child_columns is not None and pair.child_column not in child_columns:
                 errors.append(
                     diagnostics.error(
-                        "unknown_relationship_dimension_column",
-                        "A selected relationship dimension column is unavailable.",
+                        "unknown_relationship_child_column",
+                        "A selected relationship child column is unavailable.",
                         section="relationships",
                         id=relationship.id,
                     )
@@ -301,15 +319,15 @@ def _missing_connection_diagnostics(db: Session, *, user_id: str, model: ModelDe
             section="sources",
             connection_id=connection_id,
         )
-        for connection_id in dict.fromkeys(missing_ids)
+        for connection_id in sorted(set(missing_ids), key=str.casefold)
     ]
 
 
 def _referenced_connection_ids(model: ModelDefinition) -> list[str]:
-    ids = [source.connection_id for source in model.sources]
-    if model.fact_table is not None:
+    ids = [source.connection_id for source in model.sources if source.connection_id]
+    if model.fact_table is not None and model.fact_table.connection_id:
         ids.append(model.fact_table.connection_id)
-    ids.extend(dimension.connection_id for dimension in model.dimensions)
+    ids.extend(dimension.connection_id for dimension in model.dimensions if dimension.connection_id)
     return ids
 
 
@@ -321,7 +339,7 @@ def _validate_name(name: str) -> str:
 
 
 def _model_from_record(record: AnalyticalDataModel) -> ModelDefinition:
-    return ModelDefinition.model_validate(record.model_json)
+    return normalize_persisted_model_definition(record.model_json)
 
 
 def _summary(

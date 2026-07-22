@@ -21,7 +21,7 @@ class RuleValidationResult:
 
 def validate_business_rules(rules: list[BusinessRuleDefinition], *, table_columns: dict[str, set[str]]) -> RuleValidationResult:
     result = RuleValidationResult()
-    for rule in rules:
+    for rule in sorted(rules, key=lambda item: item.id.casefold()):
         if UNSAFE_TOKENS.search(rule.expression):
             result.errors.append(diagnostics.error("unsafe_rule_expression", "Business rule expressions cannot contain statements or comments.", section="business_rules", id=rule.id))
             continue
