@@ -82,6 +82,16 @@ Implemented routes:
 
 The protected web routes depend on the backend-owned session cookie. For local backend-backed flows, run `apps/api` and set `API_BASE_URL=http://127.0.0.1:8000` for the web app.
 
+### Audit
+
+Review running process
+
+```bash
+$api = Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue
+$web = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue
+@($api, $web) | Where-Object { $_ } | Select-Object LocalAddress,LocalPort,OwningProcess
+```
+
 ## Configuration
 
 Backend environment values are documented in `apps/api/.env.example`. Important settings include:
