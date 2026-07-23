@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import type { SavedConnection } from "@/features/creditmodeler/connection-types";
 import { listConnections } from "@/features/creditmodeler/connections-client";
+import { ColumnMultiSelect } from "@/features/creditmodeler/ColumnMultiSelect";
 import {
   createDataModel,
   deleteDataModel,
@@ -142,10 +143,6 @@ function uniqueDimensionAlias(model: DataModelDefinition, table: string): string
 
 function modelSnapshot(name: string, description: string, model: DataModelDefinition): string {
   return JSON.stringify({ name, description, model });
-}
-
-function selectedValues(select: HTMLSelectElement): string[] {
-  return Array.from(select.selectedOptions, (option) => option.value);
 }
 
 function defaultPrimaryKey(schemaObject: DataModelSchemaObject | undefined): string[] {
@@ -1356,7 +1353,7 @@ export function DataModelBuilder({ modelId, onDataModelDropped, onDataModelSaved
             summary="The central table and analytical grain"
             title="Fact table"
           >
-            <div className="rv-data-model-builder__field-grid rv-data-model-builder__field-grid--two">
+            <div className="rv-data-model-builder__field-grid rv-data-model-builder__field-grid--two rv-data-model-builder__fact-grid">
               <label className="rv-data-model-builder__field">
                 <span>Fact source connection</span>
                 <select disabled={!draft.sources.length} value={draft.fact_table?.connection_id ?? ""} onChange={(event) => handleFactSource(event.target.value)}>
@@ -1397,16 +1394,18 @@ export function DataModelBuilder({ modelId, onDataModelDropped, onDataModelSaved
                 <span>Fact alias</span>
                 <input disabled={!draft.fact_table} value={draft.fact_table?.alias ?? ""} onChange={(event) => handleAliasChange("fact", draft.fact_table?.alias ?? "", event.target.value)} />
               </label>
-              <label className="rv-data-model-builder__field">
+              <div className="rv-data-model-builder__field">
                 <span>Fact primary key columns</span>
-                <select aria-label="Fact primary key columns" disabled={!draft.fact_table?.table} multiple value={draft.fact_table?.primary_key ?? []} onChange={(event) => {
-                  const primaryKey = selectedValues(event.currentTarget);
+                <ColumnMultiSelect
+                  ariaLabel="Fact primary key columns"
+                  columns={draft.fact_table ? schemaObject(draft.fact_table.connection_id, draft.fact_table.table)?.columns ?? [] : []}
+                  disabled={!draft.fact_table || !schemaObject(draft.fact_table.connection_id, draft.fact_table.table)}
+                  onChange={(primaryKey) => {
                   mutateDraft((current) => ({ ...current, fact_table: current.fact_table ? { ...current.fact_table, primary_key: primaryKey } : null }));
-                }}>
-                  {draft.fact_table ? schemaObject(draft.fact_table.connection_id, draft.fact_table.table)?.columns.map((column) => <option key={column.name} value={column.name}>{column.name}{column.primary_key ? " · PK" : ""}</option>) : null}
-                </select>
-                <small>Use Ctrl/Cmd to select a composite key.</small>
-              </label>
+                  }}
+                  value={draft.fact_table?.primary_key ?? []}
+                />
+              </div>
               <label className="rv-data-model-builder__field rv-data-model-builder__field--wide">
                 <span>Grain</span>
                 <input disabled={!draft.fact_table} placeholder="One row per account observation date" value={draft.fact_table?.grain ?? ""} onChange={(event) => {
@@ -1426,10 +1425,10 @@ export function DataModelBuilder({ modelId, onDataModelDropped, onDataModelSaved
           >
             <div className="rv-data-model-builder__repeatable-list">
               {draft.dimensions.map((dimension, index) => (
-                <fieldset className="rv-data-model-builder__repeatable" key={dimension.id}>
+                <fieldset className="rv-data-model-builder__repeatable rv-data-model-builder__dimension-card" key={dimension.id}>
                   <legend>Dimension {index + 1}</legend>
-                  <button aria-label={`Remove dimension ${index + 1}`} className="rv-data-model-builder__remove-button" onClick={() => handleRemoveDimension(dimension.id)} type="button">Remove</button>
-                  <div className="rv-data-model-builder__field-grid rv-data-model-builder__field-grid--two">
+                  <div className="rv-data-model-builder__field-grid rv-data-model-builder__field-grid--two rv-data-model-builder__dimension-grid">
+                    <button aria-label={`Remove dimension ${index + 1}`} className="rv-data-model-builder__remove-button" onClick={() => handleRemoveDimension(dimension.id)} type="button">Remove</button>
                     <label className="rv-data-model-builder__field">
                       <span>Source connection</span>
                       <select aria-label={`Dimension ${index + 1} source connection`} value={dimension.connection_id} onChange={(event) => handleDimensionSource(dimension.id, event.target.value)}>
@@ -1456,16 +1455,18 @@ export function DataModelBuilder({ modelId, onDataModelDropped, onDataModelSaved
                       <span>Dimension alias</span>
                       <input aria-label={`Dimension ${index + 1} alias`} value={dimension.alias} onChange={(event) => handleAliasChange(dimension.id, dimension.alias, event.target.value)} />
                     </label>
-                    <label className="rv-data-model-builder__field">
+                    <div className="rv-data-model-builder__field rv-data-model-builder__dimension-key-field">
                       <span>Primary key columns</span>
-                      <select aria-label={`Dimension ${index + 1} primary key columns`} multiple value={dimension.primary_key} onChange={(event) => {
-                        const primaryKey = selectedValues(event.currentTarget);
+                      <ColumnMultiSelect
+                        ariaLabel={`Dimension ${index + 1} primary key columns`}
+                        columns={schemaObject(dimension.connection_id, dimension.table)?.columns ?? []}
+                        disabled={!schemaObject(dimension.connection_id, dimension.table)}
+                        onChange={(primaryKey) => {
                         mutateDraft((current) => ({ ...current, dimensions: current.dimensions.map((item) => item.id === dimension.id ? { ...item, primary_key: primaryKey } : item) }));
-                      }}>
-                        {schemaObject(dimension.connection_id, dimension.table)?.columns.map((column) => <option key={column.name} value={column.name}>{column.name}{column.primary_key ? " · PK" : ""}</option>)}
-                      </select>
-                      <small>Use Ctrl/Cmd to select a composite key.</small>
-                    </label>
+                        }}
+                        value={dimension.primary_key}
+                      />
+                    </div>
                   </div>
                 </fieldset>
               ))}

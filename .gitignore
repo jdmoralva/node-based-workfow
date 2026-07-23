@@ -1,6 +1,7 @@
 # Environment files
 .env
 .env.*
+!apps/web/.env.example
 
 # Other projects refferenced
 github/

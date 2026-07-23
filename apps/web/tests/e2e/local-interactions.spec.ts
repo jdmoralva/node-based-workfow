@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 
 import type { DataModelCreatePayload, SavedDataModel } from "@/features/creditmodeler/data-model-types";
 
+import { requiredViewports } from "../fixtures/viewports";
 import { createAuthenticatedStorageState } from "../helpers/auth-session";
 import { waitForStablePage } from "../helpers/wait-for-stable-page";
 
@@ -240,6 +241,7 @@ test.describe("local login and shell interactions", () => {
 
   test("creates, reopens, tests, saves stale, and drops a saved data model", async ({ page, request }) => {
     test.skip(!process.env.E2E_AUTH_WITH_BACKEND, "Requires backend auth services and env wiring.");
+    test.slow();
 
     const storageState = await createAuthenticatedStorageState(request);
     await page.context().addCookies(storageState.cookies);
@@ -293,7 +295,13 @@ test.describe("local login and shell interactions", () => {
               object_type: "table",
               columns: [
                 { name: "account_id", declared_type: "TEXT", nullable: false, primary_key: true },
-                { name: "customer_id", declared_type: "TEXT", nullable: false, primary_key: false }
+                { name: "customer_id", declared_type: "TEXT", nullable: false, primary_key: false },
+                { name: "segment_id", declared_type: "TEXT", nullable: true, primary_key: false },
+                { name: "balance", declared_type: "NUMERIC", nullable: true, primary_key: false },
+                { name: "status", declared_type: "TEXT", nullable: true, primary_key: false },
+                { name: "opened_at", declared_type: "TEXT", nullable: true, primary_key: false },
+                { name: "branch_id", declared_type: "TEXT", nullable: true, primary_key: false },
+                { name: "product_id", declared_type: "TEXT", nullable: true, primary_key: false }
               ]
             },
             {
@@ -376,9 +384,117 @@ test.describe("local login and shell interactions", () => {
     await page.getByRole("button", { name: "Add source connection" }).click();
     await page.getByLabel("Fact source connection").selectOption("conn_1");
     await page.getByLabel("Fact table or view").selectOption("loans");
+    const factSection = page.getByLabel("Fact source connection").locator("xpath=ancestor::details");
+    const factControls = [
+      page.getByLabel("Fact source connection"),
+      page.getByLabel("Fact table or view"),
+      page.getByLabel("Fact alias"),
+      page.getByRole("button", { name: "Fact primary key columns" }),
+      page.getByLabel("Grain")
+    ];
+    const expectFactControlHeight = async (height: number) => {
+      for (const control of factControls) {
+        const box = await control.boundingBox();
+        expect(box).not.toBeNull();
+        expect(box!.height).toBe(height);
+      }
+    };
+    await expectFactControlHeight(34);
+    const factSectionBox = await factSection.boundingBox();
+    expect(factSectionBox).not.toBeNull();
+    expect(factSectionBox!.height).toBeLessThanOrEqual(255);
+
+    const factKeyTrigger = page.getByRole("button", { name: "Fact primary key columns" });
+    await factKeyTrigger.click();
+    const factKeyOptions = page.getByRole("group", { name: "Fact primary key columns options" });
+    await expect(factKeyOptions).toBeVisible();
+    expect(await factKeyOptions.evaluate((options) => {
+      const bounds = options.getBoundingClientRect();
+      const sectionBounds = options.closest("details")?.getBoundingClientRect();
+      if (!sectionBounds) {
+        return false;
+      }
+      const sampleY = bounds.top < sectionBounds.top
+        ? (bounds.top + Math.min(bounds.bottom, sectionBounds.top)) / 2
+        : bounds.bottom > sectionBounds.bottom
+          ? (Math.max(bounds.top, sectionBounds.bottom) + bounds.bottom) / 2
+          : null;
+      if (sampleY === null) {
+        return false;
+      }
+      const topElement = document.elementFromPoint(bounds.left + bounds.width / 2, sampleY);
+      return topElement !== null && options.contains(topElement);
+    })).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+    await page.keyboard.press("Escape");
+
+    const desktopViewport = page.viewportSize();
+    await page.setViewportSize(requiredViewports.mobile);
+    await expectFactControlHeight(40);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+    if (desktopViewport) {
+      await page.setViewportSize(desktopViewport);
+    }
+
     await page.getByRole("button", { name: "Add dimension" }).click();
-    await page.getByLabel("Dimension 1 table or view").selectOption("customers");
+    const dimensionTableSelect = page.getByLabel("Dimension 1 table or view");
+    const removeDimensionButton = page.getByRole("button", { name: "Remove dimension 1" });
+    await removeDimensionButton.focus();
+    await page.keyboard.press("Tab");
+    await expect(page.getByLabel("Dimension 1 source connection")).toBeFocused();
+    const expectRemoveClearOfDimensionSelectors = async () => {
+      const [removeDimensionBox, dimensionSourceBox, dimensionTableBox] = await Promise.all([
+        removeDimensionButton.boundingBox(),
+        page.getByLabel("Dimension 1 source connection").boundingBox(),
+        dimensionTableSelect.boundingBox()
+      ]);
+      expect(removeDimensionBox).not.toBeNull();
+      expect(dimensionSourceBox).not.toBeNull();
+      expect(dimensionTableBox).not.toBeNull();
+      for (const selectorBox of [dimensionSourceBox!, dimensionTableBox!]) {
+        const hasClearance = removeDimensionBox!.x >= selectorBox.x + selectorBox.width + 4
+          || selectorBox.x >= removeDimensionBox!.x + removeDimensionBox!.width + 4
+          || removeDimensionBox!.y >= selectorBox.y + selectorBox.height + 4
+          || selectorBox.y >= removeDimensionBox!.y + removeDimensionBox!.height + 4;
+        expect(hasClearance).toBe(true);
+      }
+    };
+    await expectRemoveClearOfDimensionSelectors();
+    await page.setViewportSize(requiredViewports.mobile);
+    await expectRemoveClearOfDimensionSelectors();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+    if (desktopViewport) {
+      await page.setViewportSize(desktopViewport);
+    }
+    await dimensionTableSelect.selectOption("customers");
     await page.getByRole("button", { name: "Add relationship", exact: true }).click();
+    const expectRemoveActionsAligned = async () => {
+      const dimensionSource = page.getByLabel("Dimension 1 source connection");
+      const relationshipParent = page.getByLabel("Relationship 1 parent table");
+      const [dimensionButtonBox, dimensionLabelBox, relationshipButtonBox, relationshipLabelBox] = await Promise.all([
+        page.getByRole("button", { name: "Remove dimension 1" }).boundingBox(),
+        dimensionSource.locator("xpath=preceding-sibling::span").boundingBox(),
+        page.getByRole("button", { name: "Remove relationship 1" }).boundingBox(),
+        relationshipParent.locator("xpath=preceding-sibling::span").boundingBox()
+      ]);
+      expect(dimensionButtonBox).not.toBeNull();
+      expect(dimensionLabelBox).not.toBeNull();
+      expect(relationshipButtonBox).not.toBeNull();
+      expect(relationshipLabelBox).not.toBeNull();
+      const dimensionOffset = dimensionButtonBox!.y + dimensionButtonBox!.height / 2
+        - (dimensionLabelBox!.y + dimensionLabelBox!.height / 2);
+      const relationshipOffset = relationshipButtonBox!.y + relationshipButtonBox!.height / 2
+        - (relationshipLabelBox!.y + relationshipLabelBox!.height / 2);
+      expect(Math.abs(dimensionOffset - relationshipOffset)).toBeLessThanOrEqual(3);
+    };
+    await expectRemoveActionsAligned();
+    await page.setViewportSize(requiredViewports.mobile);
+    await expectRemoveActionsAligned();
+    await expectRemoveClearOfDimensionSelectors();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+    if (desktopViewport) {
+      await page.setViewportSize(desktopViewport);
+    }
     await page.getByRole("button", { name: "Add key pair for dim_customers" }).click();
     await page.getByLabel("Relationship 1 parent column 1").selectOption("customer_id");
     await page.getByLabel("Relationship 1 child column 1").selectOption("customer_id");

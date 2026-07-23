@@ -298,6 +298,7 @@ describe("DataModelBuilder", () => {
 
     expect(await screen.findByRole("option", { name: "loans · table" })).toBeInTheDocument();
     expect(screen.getByLabelText("Fact table or view")).toHaveValue("");
+    expect(screen.getByRole("button", { name: "Fact primary key columns" })).toBeDisabled();
     expect(mockedInspectConnectionSchema).toHaveBeenCalledWith("conn_1");
   });
 
@@ -321,6 +322,184 @@ describe("DataModelBuilder", () => {
 
     await waitFor(() => expect(mockedInspectConnectionSchema).toHaveBeenCalledTimes(2));
     expect(await screen.findByRole("option", { name: "loans · table" })).toBeInTheDocument();
+  });
+
+  it("edits composite fact keys through a compact checklist", async () => {
+    const user = userEvent.setup();
+    mockedInspectConnectionSchema.mockResolvedValue({
+      connection_id: "conn_1",
+      connection_label: "Portfolio",
+      objects: [
+        {
+          name: "loans",
+          object_type: "table",
+          columns: [
+            { name: "account_id", declared_type: "TEXT", nullable: false, primary_key: true },
+            { name: "customer_id", declared_type: "TEXT", nullable: false, primary_key: false }
+          ]
+        }
+      ]
+    });
+    render(<DataModelBuilder />);
+
+    await user.selectOptions(await screen.findByLabelText("New source connection"), "conn_1");
+    await user.click(screen.getByRole("button", { name: "Add source connection" }));
+    await user.selectOptions(screen.getByLabelText("Fact source connection"), "conn_1");
+    await user.selectOptions(screen.getByLabelText("Fact table or view"), "loans");
+
+    const factKeys = screen.getByRole("button", { name: "Fact primary key columns" });
+    expect(factKeys).toHaveTextContent("account_id");
+    expect(factKeys).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(factKeys);
+    expect(screen.getByRole("checkbox", { name: /account_id.*PK/i })).toBeChecked();
+    await user.click(screen.getByRole("checkbox", { name: /^customer_id$/i }));
+    await user.keyboard("{Escape}");
+
+    expect(factKeys).toHaveTextContent("account_id");
+    expect(factKeys).toHaveTextContent("+1");
+    expect(factKeys).toHaveFocus();
+
+    await user.click(screen.getByRole("button", { name: "Test model" }));
+    expect(mockedTestUnsavedDataModel).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        model: expect.objectContaining({
+          fact_table: expect.objectContaining({ primary_key: ["account_id", "customer_id"] })
+        })
+      })
+    );
+  });
+
+  it("repairs fact keys when the selected table changes", async () => {
+    const user = userEvent.setup();
+    mockedInspectConnectionSchema.mockResolvedValue({
+      connection_id: "conn_1",
+      connection_label: "Portfolio",
+      objects: [
+        {
+          name: "loans",
+          object_type: "table",
+          columns: [{ name: "account_id", declared_type: "TEXT", nullable: false, primary_key: true }]
+        },
+        {
+          name: "loan_archive",
+          object_type: "view",
+          columns: [{ name: "archive_id", declared_type: "TEXT", nullable: false, primary_key: true }]
+        }
+      ]
+    });
+    render(<DataModelBuilder />);
+
+    await user.selectOptions(await screen.findByLabelText("New source connection"), "conn_1");
+    await user.click(screen.getByRole("button", { name: "Add source connection" }));
+    await user.selectOptions(screen.getByLabelText("Fact source connection"), "conn_1");
+    await user.selectOptions(screen.getByLabelText("Fact table or view"), "loans");
+
+    const factKeys = screen.getByRole("button", { name: "Fact primary key columns" });
+    expect(factKeys).toHaveAccessibleDescription("1 selected: account_id");
+
+    await user.selectOptions(screen.getByLabelText("Fact table or view"), "loan_archive");
+
+    expect(factKeys).toHaveAccessibleDescription("1 selected: archive_id");
+  });
+
+  it("edits composite dimension keys through a compact checklist", async () => {
+    const user = userEvent.setup();
+    mockedInspectConnectionSchema.mockResolvedValue({
+      connection_id: "conn_1",
+      connection_label: "Portfolio",
+      objects: [
+        {
+          name: "loans",
+          object_type: "table",
+          columns: [{ name: "account_id", declared_type: "TEXT", nullable: false, primary_key: true }]
+        },
+        {
+          name: "customers",
+          object_type: "table",
+          columns: [
+            { name: "customer_id", declared_type: "TEXT", nullable: false, primary_key: true },
+            { name: "segment_id", declared_type: "TEXT", nullable: false, primary_key: true },
+            { name: "name", declared_type: "TEXT", nullable: true, primary_key: false }
+          ]
+        }
+      ]
+    });
+    render(<DataModelBuilder />);
+
+    await user.selectOptions(await screen.findByLabelText("New source connection"), "conn_1");
+    await user.click(screen.getByRole("button", { name: "Add source connection" }));
+    await user.selectOptions(screen.getByLabelText("Fact source connection"), "conn_1");
+    await user.selectOptions(screen.getByLabelText("Fact table or view"), "loans");
+    await user.click(screen.getByRole("button", { name: "Add dimension" }));
+    await user.selectOptions(screen.getByLabelText("Dimension 1 table or view"), "customers");
+
+    expect(screen.getByRole("button", { name: "Fact primary key columns" })).toHaveAttribute("aria-expanded", "false");
+    const dimensionKeys = screen.getByRole("button", { name: "Dimension 1 primary key columns" });
+    expect(dimensionKeys).toHaveAttribute("aria-expanded", "false");
+    expect(dimensionKeys).toHaveTextContent("customer_id");
+    expect(dimensionKeys).toHaveTextContent("+1");
+
+    await user.click(dimensionKeys);
+
+    expect(dimensionKeys).toHaveAttribute("aria-expanded", "true");
+    const customerKey = screen.getByRole("checkbox", { name: /customer_id.*PK/i });
+    const segmentKey = screen.getByRole("checkbox", { name: /segment_id.*PK/i });
+    const nameKey = screen.getByRole("checkbox", { name: /^name$/i });
+    expect(customerKey).toBeChecked();
+    expect(segmentKey).toBeChecked();
+    expect(nameKey).not.toBeChecked();
+
+    await user.click(segmentKey);
+    await user.click(nameKey);
+    await user.keyboard("{Escape}");
+
+    expect(dimensionKeys).toHaveAttribute("aria-expanded", "false");
+    expect(dimensionKeys).toHaveFocus();
+    expect(dimensionKeys).toHaveTextContent("customer_id");
+    expect(dimensionKeys).toHaveTextContent("+1");
+
+    await user.click(screen.getByRole("button", { name: "Test model" }));
+    expect(mockedTestUnsavedDataModel).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        model: expect.objectContaining({
+          dimensions: [expect.objectContaining({ primary_key: ["customer_id", "name"] })]
+        })
+      })
+    );
+  });
+
+  it("repairs dimension keys when the selected table changes", async () => {
+    const user = userEvent.setup();
+    mockedInspectConnectionSchema.mockResolvedValue({
+      connection_id: "conn_1",
+      connection_label: "Portfolio",
+      objects: [
+        {
+          name: "customers",
+          object_type: "table",
+          columns: [{ name: "customer_id", declared_type: "TEXT", nullable: false, primary_key: true }]
+        },
+        {
+          name: "customer_archive",
+          object_type: "view",
+          columns: [{ name: "archive_id", declared_type: "TEXT", nullable: false, primary_key: true }]
+        }
+      ]
+    });
+    render(<DataModelBuilder />);
+
+    await user.selectOptions(await screen.findByLabelText("New source connection"), "conn_1");
+    await user.click(screen.getByRole("button", { name: "Add source connection" }));
+    await user.click(screen.getByRole("button", { name: "Add dimension" }));
+    await user.selectOptions(screen.getByLabelText("Dimension 1 table or view"), "customers");
+
+    const dimensionKeys = screen.getByRole("button", { name: "Dimension 1 primary key columns" });
+    expect(dimensionKeys).toHaveAccessibleDescription("1 selected: customer_id");
+
+    await user.selectOptions(screen.getByLabelText("Dimension 1 table or view"), "customer_archive");
+
+    expect(dimensionKeys).toHaveAccessibleDescription("1 selected: archive_id");
   });
 
   it("sends configured fact, dimension, relationship, and business rule for testing", async () => {
@@ -820,14 +999,13 @@ describe("DataModelBuilder", () => {
 
     await user.selectOptions(screen.getByLabelText("Fact source connection"), "conn_1");
     await user.selectOptions(screen.getByLabelText("Fact table or view"), "loans");
-    await user.selectOptions(screen.getByLabelText("Fact primary key columns"), ["account_id"]);
 
     await user.click(screen.getByRole("button", { name: "Add dimension" }));
     await user.selectOptions(screen.getByLabelText("Dimension 1 source connection"), "conn_2");
     await user.selectOptions(screen.getByLabelText("Dimension 1 table or view"), "customers");
     await user.clear(screen.getByLabelText("Dimension 1 alias"));
     await user.type(screen.getByLabelText("Dimension 1 alias"), "dim_customer");
-    await user.selectOptions(screen.getByLabelText("Dimension 1 primary key columns"), ["customer_id", "segment_id"]);
+    expect(screen.getByRole("button", { name: "Dimension 1 primary key columns" })).toHaveTextContent("+1");
 
     await user.click(screen.getByRole("button", { name: "Add relationship" }));
     await user.click(screen.getByRole("button", { name: "Add key pair for dim_customer" }));

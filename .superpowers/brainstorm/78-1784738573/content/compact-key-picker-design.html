@@ -1,0 +1,98 @@
+<style>
+  #claude-content { max-width: 1040px; margin: 0 auto; }
+  .design-grid { display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: 20px; }
+  .state { overflow: visible; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-secondary); }
+  .state-header { padding: 9px 13px; border-bottom: 1px solid var(--border); color: var(--text-secondary); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+  .state-body { min-height: 245px; padding: 32px 18px; background: #f4f5f8; border-radius: 0 0 12px 12px; }
+  .dimension-card { position: relative; padding: 18px 12px 12px; border: 1px solid rgba(84, 93, 116, 0.18); border-radius: 9px; background: #fff; color: #4d5465; }
+  .legend { position: absolute; top: -10px; left: 11px; padding: 0 6px; background: #fff; font-size: 11px; font-weight: 700; }
+  .remove { position: absolute; top: 6px; right: 10px; border: 0; background: transparent; color: #925b65; font-size: 10px; font-weight: 700; }
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 11px; }
+  .field { position: relative; min-width: 0; display: grid; align-content: start; gap: 5px; }
+  .field > label { color: #61697a; font-size: 10px; font-weight: 700; }
+  .control { width: 100%; height: 34px; display: flex; align-items: center; gap: 5px; overflow: hidden; padding: 0 9px; border: 1px solid rgba(88, 97, 120, 0.22); border-radius: 7px; background: #f6f7f9; color: #3e4556; font-size: 11px; white-space: nowrap; }
+  .control.select::after { content: "⌄"; margin-left: auto; color: #626b7c; }
+  .key-trigger { cursor: pointer; }
+  .key-trigger.open { border-color: rgba(92, 93, 146, 0.7); background: #fff; box-shadow: 0 0 0 3px rgba(116, 117, 168, 0.12); }
+  .key-token { max-width: 75%; overflow: hidden; padding: 3px 6px; border-radius: 4px; background: #e8e8f2; color: #555681; font-size: 9px; font-weight: 700; text-overflow: ellipsis; }
+  .key-more { color: #777e8d; font-size: 9px; font-weight: 700; }
+  .chevron { margin-left: auto; color: #626b7c; }
+  .popover { position: absolute; z-index: 2; top: calc(100% + 5px); right: 0; width: 100%; min-width: 190px; overflow: hidden; border: 1px solid rgba(84, 93, 116, 0.22); border-radius: 8px; background: #fff; box-shadow: 0 10px 24px rgba(39, 43, 58, 0.14); }
+  .popover-title { display: flex; justify-content: space-between; gap: 10px; padding: 8px 10px; border-bottom: 1px solid rgba(84, 93, 116, 0.12); color: #777e8d; font-size: 9px; }
+  .popover-title strong { color: #555681; }
+  .choices { max-height: 132px; overflow: auto; padding: 4px; }
+  .choice { min-height: 30px; display: grid; grid-template-columns: 15px minmax(0, 1fr) auto; align-items: center; gap: 7px; padding: 4px 6px; border-radius: 5px; color: #4d5465; font-size: 10px; }
+  .choice:hover { background: #f4f4f8; }
+  .checkbox { width: 13px; height: 13px; display: grid; place-items: center; border: 1px solid #7475a8; border-radius: 3px; background: #5c5d92; color: #fff; font-size: 9px; }
+  .checkbox.empty { background: #fff; color: transparent; }
+  .pk { padding: 2px 5px; border-radius: 999px; background: #eff3ed; color: #557359; font-size: 8px; font-weight: 800; }
+  .behavior { margin: 20px 0 0; padding: 14px 16px; border: 1px solid rgba(84, 93, 116, 0.14); border-radius: 10px; background: var(--bg-secondary); }
+  .behavior h3 { margin-bottom: 8px; font-size: 0.87rem; }
+  .behavior ul { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 24px; margin: 0; padding-left: 18px; color: var(--text-secondary); font-size: 0.78rem; }
+  .approve { margin-top: 16px; padding: 13px 16px; border: 2px solid var(--border); border-radius: 10px; background: var(--bg-secondary); cursor: pointer; transition: border-color 150ms ease, background 150ms ease; }
+  .approve:hover, .approve.selected { border-color: #5c5d92; background: #f1f1f7; }
+  .approve strong { display: block; color: #4d5465; font-size: 0.88rem; }
+  .approve span { color: var(--text-secondary); font-size: 0.76rem; }
+  @media (max-width: 760px) { .design-grid { grid-template-columns: 1fr; } .behavior ul { grid-template-columns: 1fr; } .fields { grid-template-columns: 1fr; } .state-body { min-height: 390px; } }
+</style>
+
+<h2>Compact key picker: final interaction</h2>
+<p class="subtitle">A 2 × 2 card stays fully scannable. The key list only occupies space while it is being edited.</p>
+
+<div class="design-grid">
+  <section class="state">
+    <div class="state-header">Resting state · about 130px high</div>
+    <div class="state-body">
+      <div class="dimension-card">
+        <span class="legend">Dimension 1</span><button class="remove">Remove</button>
+        <div class="fields">
+          <div class="field"><label>Source connection</label><div class="control select">chinook</div></div>
+          <div class="field"><label>Table or view</label><div class="control select">Artist · table</div></div>
+          <div class="field"><label>Dimension alias</label><div class="control">dim_artist</div></div>
+          <div class="field"><label>Primary key columns</label><div class="control key-trigger"><span class="key-token">ArtistId</span><span class="chevron">⌄</span></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="state">
+    <div class="state-header">Editing state · anchored checklist</div>
+    <div class="state-body">
+      <div class="dimension-card">
+        <span class="legend">Dimension 1</span><button class="remove">Remove</button>
+        <div class="fields">
+          <div class="field"><label>Source connection</label><div class="control select">chinook</div></div>
+          <div class="field"><label>Table or view</label><div class="control select">Artist · table</div></div>
+          <div class="field"><label>Dimension alias</label><div class="control">dim_artist</div></div>
+          <div class="field"><label>Primary key columns</label>
+            <div class="control key-trigger open"><span class="key-token">ArtistId</span><span class="chevron">⌃</span></div>
+            <div class="popover">
+              <div class="popover-title"><span>Select one or more columns</span><strong>1 selected</strong></div>
+              <div class="choices">
+                <div class="choice"><span class="checkbox">✓</span><span>ArtistId</span><span class="pk">PK</span></div>
+                <div class="choice"><span class="checkbox empty">✓</span><span>Name</span><span></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<section class="behavior">
+  <h3>Behavior and boundaries</h3>
+  <ul>
+    <li>Selections update the draft immediately.</li>
+    <li>Click outside or press Escape to close.</li>
+    <li>Long column lists scroll inside the popover.</li>
+    <li>Composite keys show the first token plus “+N”.</li>
+    <li>Mobile stacks fields and keeps 40px controls.</li>
+    <li>Only dimension cards change; fact controls remain as-is.</li>
+  </ul>
+</section>
+
+<div class="approve" data-choice="approve-compact-key-picker" onclick="toggleSelect(this)">
+  <strong>Approve this compact dimension design</strong>
+  <span>Click here, then confirm in the terminal.</span>
+</div>

@@ -1,6 +1,10 @@
-import { getCurrentUserFromCookieHeader } from "@/lib/auth/auth-server";
+import { getCurrentUserFromCookieHeader, getServerAuthConfig } from "@/lib/auth/auth-server";
 
 describe("auth-server", () => {
+  it("defaults server-side session validation to the backend API", () => {
+    expect(getServerAuthConfig({})).toEqual({ apiBaseUrl: "http://127.0.0.1:8000" });
+  });
+
   it("forwards cookies to /api/auth/me without caching", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
