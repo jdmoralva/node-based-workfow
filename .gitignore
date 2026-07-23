@@ -1,6 +1,7 @@
 # Environment files
 .env
 .env.*
+!apps/web/.env.example
 
 # Other projects refferenced
 github/
@@ -8,6 +9,7 @@ github/
 # Databases
 agents/rag/data/chroma/
 agents/text2sql/data/
+data/app/app.db
 
 # Build files
 __pycache__/

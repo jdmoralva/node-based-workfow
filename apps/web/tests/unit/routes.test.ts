@@ -16,7 +16,7 @@ const redirectMock = vi.fn((target: string) => {
 });
 
 const cookiesMock = vi.fn(async () => ({
-  toString: () => ""
+  toString: (): string => ""
 }));
 
 const headersMock = vi.fn(async () => new Headers());

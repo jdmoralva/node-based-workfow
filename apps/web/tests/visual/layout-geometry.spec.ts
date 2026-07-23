@@ -235,12 +235,52 @@ test.describe("@visual desktop layout geometry", () => {
     await waitForStablePage(page);
 
     const canvasBefore = await measureElement(page.getByTestId("workbench-canvas"));
-    await page.getByRole("button", { name: "Connections" }).click();
+    await page.getByRole("button", { name: "Connections", exact: true }).click();
     await expect(page.getByTestId("connection-builder")).toBeVisible();
 
     const canvasAfter = await measureElement(page.getByTestId("workbench-canvas"));
     const builderBox = await measureElement(page.getByTestId("connection-builder"));
 
+    expect(isWithinTolerance(canvasAfter.x, canvasBefore.x, legacyDesktopTolerance)).toBe(true);
+    expect(isWithinTolerance(canvasAfter.y, canvasBefore.y, legacyDesktopTolerance)).toBe(true);
+    expect(isWithinTolerance(canvasAfter.width, canvasBefore.width, legacyDesktopTolerance)).toBe(true);
+    expect(builderBox.x).toBeGreaterThanOrEqual(canvasAfter.x);
+    expect(builderBox.y).toBeGreaterThanOrEqual(canvasAfter.y);
+    expect(builderBox.x + builderBox.width).toBeLessThanOrEqual(canvasAfter.x + canvasAfter.width);
+    expect(builderBox.y + builderBox.height).toBeLessThanOrEqual(canvasAfter.y + canvasAfter.height);
+  });
+
+  test(`/creditmodeler-service renders Data Model Builder without shifting shell geometry`, async ({ page, request }) => {
+    test.skip(!process.env.E2E_AUTH_WITH_BACKEND, "Requires backend auth services and env wiring.");
+
+    const storageState = await createAuthenticatedStorageState(request);
+    await page.context().addCookies(storageState.cookies);
+    await page.route("**/api/connections", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ connections: [] }) });
+    });
+    await page.route("**/api/data-models", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [] }) });
+    });
+
+    await page.setViewportSize(creditModelerDesktopViewports.desktopStandard);
+    await page.goto("/creditmodeler-service");
+    await waitForStablePage(page);
+
+    const stageBefore = await measureElement(page.getByTestId("stage-bar"));
+    const treeBefore = await measureElement(page.getByTestId("workbench-tree"));
+    const canvasBefore = await measureElement(page.getByTestId("workbench-canvas"));
+
+    await page.getByRole("button", { name: "Data Models", exact: true }).click();
+    await expect(page.getByTestId("data-model-builder")).toBeVisible();
+
+    const stageAfter = await measureElement(page.getByTestId("stage-bar"));
+    const treeAfter = await measureElement(page.getByTestId("workbench-tree"));
+    const canvasAfter = await measureElement(page.getByTestId("workbench-canvas"));
+    const builderBox = await measureElement(page.getByTestId("data-model-builder"));
+
+    expect(isWithinTolerance(stageAfter.x, stageBefore.x, legacyDesktopTolerance)).toBe(true);
+    expect(isWithinTolerance(treeAfter.x, treeBefore.x, legacyDesktopTolerance)).toBe(true);
+    expect(isWithinTolerance(treeAfter.width, treeBefore.width, legacyDesktopTolerance)).toBe(true);
     expect(isWithinTolerance(canvasAfter.x, canvasBefore.x, legacyDesktopTolerance)).toBe(true);
     expect(isWithinTolerance(canvasAfter.y, canvasBefore.y, legacyDesktopTolerance)).toBe(true);
     expect(isWithinTolerance(canvasAfter.width, canvasBefore.width, legacyDesktopTolerance)).toBe(true);

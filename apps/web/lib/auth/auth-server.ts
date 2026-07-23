@@ -19,7 +19,7 @@ function trimTrailingSlash(value: string): string {
 
 export function getServerAuthConfig(env: Record<string, string | undefined> = process.env): ServerAuthConfig {
   return {
-    apiBaseUrl: trimTrailingSlash(env.API_BASE_URL || "http://127.0.0.1:3000")
+    apiBaseUrl: trimTrailingSlash(env.API_BASE_URL || "http://127.0.0.1:8000")
   };
 }
 

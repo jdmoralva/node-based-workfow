@@ -112,13 +112,14 @@ export function ConnectionBuilder({ connectionId, onConnectionDropped, onConnect
     setSubmitting(true);
     setFeedback(null);
     try {
-      const result = connectionId
-        ? await testSavedConnection(connectionId)
-        : await testUnsavedConnection({ driver: "sqlite", database_path: databasePath });
-      if ("connection" in result) {
+      if (connectionId) {
+        const result = await testSavedConnection(connectionId);
         onConnectionSaved(result.connection);
+        setFeedback(result.message);
+      } else {
+        const result = await testUnsavedConnection({ driver: "sqlite", database_path: databasePath });
+        setFeedback(result.message);
       }
-      setFeedback(result.message);
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Connection test failed.");
     } finally {

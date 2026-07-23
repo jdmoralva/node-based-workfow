@@ -1,0 +1,98 @@
+<style>
+  #claude-content { max-width: 1180px; margin: 0 auto; }
+  .density-cards { display: grid; grid-template-columns: repeat(3, minmax(260px, 1fr)); gap: 16px; }
+  .density-card { background: var(--bg-secondary); border: 2px solid var(--border); border-radius: 12px; overflow: hidden; cursor: pointer; transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease; }
+  .density-card:hover { border-color: #7475a8; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(42, 45, 61, 0.08); }
+  .density-card.selected { border-color: #5c5d92; box-shadow: 0 0 0 3px rgba(92, 93, 146, 0.14); }
+  .density-preview { min-height: 285px; display: flex; align-items: flex-start; padding: 22px 15px; background: #f4f5f8; }
+  .density-copy { padding: 14px 16px 16px; border-top: 1px solid rgba(84, 93, 116, 0.14); }
+  .density-copy h3 { margin: 0 0 4px; color: #4d5465; font-size: 0.94rem; }
+  .density-copy p { margin: 0; color: #7b8291; font-size: 0.79rem; line-height: 1.45; }
+  .dimension-card { position: relative; width: 100%; border: 1px solid rgba(84, 93, 116, 0.2); border-radius: 8px; background: #fff; color: #4d5465; }
+  .dimension-legend { position: absolute; top: -10px; left: 10px; padding: 0 5px; background: #fff; font-size: 10px; font-weight: 700; }
+  .remove { position: absolute; top: 7px; right: 9px; color: #925b65; font-size: 9px; font-weight: 700; }
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 10px; }
+  .field { min-width: 0; display: grid; align-content: start; gap: 4px; }
+  .field label { color: #61697a; font-size: 9px; font-weight: 700; }
+  .control { min-width: 0; display: flex; align-items: center; overflow: hidden; border: 1px solid rgba(88, 97, 120, 0.24); border-radius: 6px; background: #f6f7f9; color: #3e4556; font-size: 10px; white-space: nowrap; }
+  .control.select::after { content: "⌄"; margin-left: auto; padding-right: 8px; color: #626b7c; }
+  .list { display: grid; align-content: start; gap: 1px; padding: 4px 7px; }
+  .list span:first-child { background: #d9dadd; }
+  .hint { color: #9298a5; font-size: 8px; }
+  .option-a .dimension-card { padding: 14px 10px 10px; }
+  .option-a .control { height: 30px; padding: 0 8px; }
+  .option-a .list { height: 52px; }
+  .option-a .hint { margin-top: -1px; }
+  .option-b .dimension-card { padding: 14px 10px 10px; }
+  .option-b .fields { gap: 8px 10px; }
+  .option-b .control { height: 30px; padding: 0 8px; }
+  .option-b .key-trigger { gap: 5px; }
+  .key-pill { padding: 2px 5px; border-radius: 4px; background: #e8e8f2; color: #555681; font-size: 8px; font-weight: 700; }
+  .key-count { margin-left: auto; color: #858c99; font-size: 8px; }
+  .option-c .dimension-stack { width: 100%; display: grid; gap: 7px; }
+  .option-c .dimension-card { padding: 11px 12px; }
+  .summary-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+  .summary-main { min-width: 0; display: grid; gap: 1px; }
+  .summary-main strong { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+  .summary-main small { color: #858c99; font-size: 8px; }
+  .summary-action { color: #5c5d92; font-size: 9px; font-weight: 700; }
+  .summary-open { padding-bottom: 10px !important; }
+  .summary-open .fields { margin-top: 10px; }
+  .summary-open .control { height: 28px; padding: 0 7px; }
+  .recommended { display: inline-block; margin-left: 5px; padding: 2px 6px; border-radius: 999px; background: #ececf5; color: #5c5d92; font-size: 0.61rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; vertical-align: 1px; }
+  @media (max-width: 900px) { .density-cards { grid-template-columns: 1fr; } .density-preview { min-height: auto; } }
+</style>
+
+<h2>How compact should each dimension be?</h2>
+<p class="subtitle">Compare the editing density. All options preserve source, table, alias, primary keys, and removal.</p>
+
+<div class="density-cards">
+  <article class="density-card option-a" data-choice="a-tighter-native" onclick="toggleSelect(this)">
+    <div class="density-preview">
+      <div class="dimension-card">
+        <span class="dimension-legend">Dimension 1</span><span class="remove">Remove</span>
+        <div class="fields">
+          <div class="field"><label>Source connection</label><div class="control select">chinook</div></div>
+          <div class="field"><label>Table or view</label><div class="control select">Artist · table</div></div>
+          <div class="field"><label>Dimension alias</label><div class="control">dim_artist</div></div>
+          <div class="field"><label>Primary key columns</label><div class="control list"><span>ArtistId · PK</span><span>Name</span></div><div class="hint">Ctrl/Cmd for composite keys</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="density-copy"><h3>A. Tighter native controls</h3><p>Same two-row form, corrected stretching, shorter key list. Smallest implementation change.</p></div>
+  </article>
+
+  <article class="density-card option-b" data-choice="b-compact-picker" onclick="toggleSelect(this)">
+    <div class="density-preview">
+      <div class="dimension-card">
+        <span class="dimension-legend">Dimension 1</span><span class="remove">Remove</span>
+        <div class="fields">
+          <div class="field"><label>Source connection</label><div class="control select">chinook</div></div>
+          <div class="field"><label>Table or view</label><div class="control select">Artist · table</div></div>
+          <div class="field"><label>Dimension alias</label><div class="control">dim_artist</div></div>
+          <div class="field"><label>Primary key columns</label><div class="control key-trigger"><span class="key-pill">ArtistId</span><span class="key-count">1 selected</span><span>⌄</span></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="density-copy"><h3>B. Compact key picker <span class="recommended">Recommended</span></h3><p>Four uniform controls in two rows. Primary keys open in a checkbox popover when needed.</p></div>
+  </article>
+
+  <article class="density-card option-c" data-choice="c-collapsible" onclick="toggleSelect(this)">
+    <div class="density-preview">
+      <div class="dimension-stack">
+        <div class="dimension-card summary-open">
+          <div class="summary-row"><div class="summary-main"><strong>dim_artist</strong><small>chinook / Artist · 1 key</small></div><span class="summary-action">Done</span></div>
+          <div class="fields">
+            <div class="field"><label>Source</label><div class="control">chinook</div></div>
+            <div class="field"><label>Table</label><div class="control">Artist</div></div>
+            <div class="field"><label>Alias</label><div class="control">dim_artist</div></div>
+            <div class="field"><label>Keys</label><div class="control">ArtistId</div></div>
+          </div>
+        </div>
+        <div class="dimension-card"><div class="summary-row"><div class="summary-main"><strong>dim_track</strong><small>chinook / Track · 1 key</small></div><span class="summary-action">Edit</span></div></div>
+        <div class="dimension-card"><div class="summary-row"><div class="summary-main"><strong>dim_genre</strong><small>chinook / Genre · 1 key</small></div><span class="summary-action">Edit</span></div></div>
+      </div>
+    </div>
+    <div class="density-copy"><h3>C. Collapsible summaries</h3><p>Only the active dimension stays open. Best list density, but adds expand/collapse behavior.</p></div>
+  </article>
+</div>

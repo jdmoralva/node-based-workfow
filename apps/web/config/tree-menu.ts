@@ -93,10 +93,7 @@ export const creditModelerTreeMenu: TreeMenuDefinition = {
         controls: "data-models-submenu",
         label: "Data Models submenu"
       },
-      children: [
-        { label: "Origination", icon: "icon-cube" },
-        { label: "Portfolio", icon: "icon-cube" }
-      ]
+      children: []
     }
   ]
 };
