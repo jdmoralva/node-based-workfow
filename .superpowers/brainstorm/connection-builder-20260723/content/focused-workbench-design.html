@@ -1,0 +1,489 @@
+<style>
+  .design-notes {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+  .design-note {
+    padding: 9px 11px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+  }
+  .design-note strong {
+    display: block;
+    margin-bottom: 2px;
+    font-size: 11px;
+  }
+  .design-note span {
+    color: var(--text-secondary);
+    font-size: 11px;
+    line-height: 1.35;
+  }
+  .state-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(440px, 1fr));
+    gap: 18px;
+    align-items: start;
+  }
+  .state-shell {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #f5f7fa;
+    box-shadow: 0 8px 24px rgba(39, 43, 58, 0.07);
+    color: #303544;
+    font-family: Arial, sans-serif;
+  }
+  .state-label {
+    padding: 7px 11px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .builder-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 18px 15px;
+    border-bottom: 1px solid rgba(79, 88, 112, 0.12);
+    background: #fff;
+  }
+  .eyebrow {
+    margin-bottom: 3px;
+    color: #5c5d92;
+    font-size: 7px;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+  }
+  .title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+  .builder-header h3 {
+    margin: 0;
+    color: #272c39;
+    font-size: 18px;
+    letter-spacing: -0.015em;
+  }
+  .locked {
+    padding: 3px 6px;
+    border: 1px solid rgba(95, 103, 128, 0.18);
+    border-radius: 5px;
+    background: #f5f6f8;
+    color: #7a8191;
+    font-size: 7px;
+    font-weight: 600;
+  }
+  .subtitle-copy {
+    max-width: 330px;
+    margin-top: 5px;
+    color: #71798a;
+    font-size: 9px;
+    line-height: 1.4;
+  }
+  .status-block {
+    display: grid;
+    justify-items: end;
+    gap: 4px;
+  }
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 25px;
+    padding: 0 8px;
+    border: 1px solid rgba(183, 138, 42, 0.3);
+    border-radius: 999px;
+    background: #fff9e8;
+    color: #7b601a;
+    font-size: 7px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+  .status-pill::before {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+    content: "";
+  }
+  .status-pill.tested {
+    border-color: rgba(45, 123, 89, 0.26);
+    background: #eef8f3;
+    color: #35765c;
+  }
+  .status-block small {
+    color: #9298a5;
+    font-size: 7px;
+  }
+  .health-strip {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1px;
+    border-bottom: 1px solid rgba(79, 88, 112, 0.12);
+    background: rgba(79, 88, 112, 0.12);
+  }
+  .health-cell {
+    display: grid;
+    gap: 2px;
+    min-height: 49px;
+    align-content: center;
+    padding: 7px 13px;
+    background: #fafbfc;
+  }
+  .health-cell span {
+    color: #89909e;
+    font-size: 6px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+  .health-cell strong {
+    color: #424858;
+    font-size: 10px;
+  }
+  .health-cell strong.good { color: #39755e; }
+  .health-cell strong.warn { color: #88681d; }
+  .builder-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(132px, 0.38fr);
+    align-items: start;
+    gap: 11px;
+    min-height: 330px;
+    padding: 13px;
+  }
+  .section-card,
+  .readiness-card {
+    overflow: hidden;
+    border: 1px solid rgba(84, 93, 116, 0.16);
+    border-radius: 9px;
+    background: #fff;
+  }
+  .section-card {
+    border-color: rgba(116, 117, 168, 0.28);
+    box-shadow: 0 4px 14px rgba(52, 61, 87, 0.045);
+  }
+  .section-header {
+    min-height: 48px;
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) auto 10px;
+    align-items: center;
+    gap: 8px;
+    padding: 0 11px;
+  }
+  .section-number {
+    width: 23px;
+    height: 23px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(116, 117, 168, 0.32);
+    border-radius: 5px;
+    background: #f0f0f8;
+    color: #5c5d92;
+    font-size: 7px;
+    font-weight: 700;
+  }
+  .section-heading {
+    display: grid;
+    gap: 1px;
+  }
+  .section-heading strong {
+    color: #414655;
+    font-size: 10px;
+  }
+  .section-heading small {
+    color: #8b919e;
+    font-size: 7px;
+  }
+  .section-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #94701d;
+    font-size: 7px;
+    font-weight: 600;
+  }
+  .section-state.complete { color: #39765e; }
+  .section-state::before {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+    content: "";
+  }
+  .chevron {
+    color: #9ba0ac;
+    font-size: 8px;
+  }
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 11px;
+    padding: 13px;
+    border-top: 1px solid rgba(84, 93, 116, 0.12);
+    background: #fcfcfd;
+  }
+  .field {
+    display: grid;
+    gap: 5px;
+    color: #61697a;
+    font-size: 8px;
+    font-weight: 600;
+  }
+  .field.wide { grid-column: 1 / -1; }
+  .input {
+    min-height: 37px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 9px;
+    border: 1px solid rgba(88, 97, 120, 0.22);
+    border-radius: 7px;
+    background: #f6f7f9;
+    color: #444b5b;
+    font-size: 9px;
+    font-weight: 400;
+  }
+  .input.readonly {
+    color: #777e8d;
+    background: #eef0f3;
+  }
+  .select-arrow {
+    width: 6px;
+    height: 6px;
+    margin-top: -3px;
+    border-right: 1px solid #7a8191;
+    border-bottom: 1px solid #7a8191;
+    transform: rotate(45deg);
+  }
+  .readiness-card { align-self: start; }
+  .readiness-header {
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0 10px;
+    border-bottom: 1px solid rgba(84, 93, 116, 0.12);
+  }
+  .readiness-header strong {
+    color: #464c5d;
+    font-size: 9px;
+  }
+  .readiness-header span {
+    color: #8d93a1;
+    font-size: 7px;
+  }
+  .readiness-list { padding: 4px 9px 6px; }
+  .readiness-item {
+    display: grid;
+    grid-template-columns: 7px minmax(0, 1fr);
+    gap: 7px;
+    padding: 8px 1px;
+    border-top: 1px solid rgba(84, 93, 116, 0.09);
+    color: #737b8c;
+    font-size: 8px;
+    line-height: 1.35;
+  }
+  .readiness-item:first-child { border-top: 0; }
+  .readiness-dot {
+    width: 7px;
+    height: 7px;
+    margin-top: 2px;
+    border-radius: 50%;
+    background: #bf922f;
+  }
+  .readiness-dot.good { background: #4c8a70; }
+  .test-note {
+    padding: 9px 10px;
+    border-top: 1px solid rgba(84, 93, 116, 0.12);
+    background: #f7f8fa;
+    color: #757d8d;
+    font-size: 7px;
+    line-height: 1.4;
+  }
+  .feedback {
+    margin: 0 13px 11px;
+    padding: 9px 10px;
+    border: 1px solid rgba(45, 123, 89, 0.2);
+    border-radius: 7px;
+    background: #eef8f3;
+    color: #35765c;
+    font-size: 8px;
+  }
+  .action-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 55px;
+    padding: 8px 13px;
+    border-top: 1px solid rgba(79, 88, 112, 0.14);
+    background: rgba(255, 255, 255, 0.97);
+  }
+  .action-group {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-left: auto;
+  }
+  .action-note {
+    color: #8b919e;
+    font-size: 7px;
+  }
+  .button {
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 11px;
+    border: 1px solid rgba(92, 100, 125, 0.24);
+    border-radius: 7px;
+    background: #fff;
+    color: #5d6480;
+    font-size: 8px;
+    font-weight: 700;
+  }
+  .button.primary {
+    border-color: #5c5d92;
+    background: #5c5d92;
+    color: #fff;
+    box-shadow: 0 3px 8px rgba(76, 78, 130, 0.18);
+  }
+  .button.danger {
+    border-color: rgba(151, 80, 86, 0.2);
+    color: #925962;
+  }
+  .approval-options { margin-top: 20px; }
+  @media (max-width: 1050px) {
+    .state-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 700px) {
+    .design-notes { grid-template-columns: 1fr 1fr; }
+    .builder-main { grid-template-columns: 1fr; }
+  }
+</style>
+
+<h2>Focused workbench design</h2>
+<p class="subtitle">One visual system across both builders, with connection-specific status and readiness derived only from existing state.</p>
+
+<div class="design-notes">
+  <div class="design-note"><strong>Focal point</strong><span>One open Connection details section</span></div>
+  <div class="design-note"><strong>Structure</strong><span>Header, health strip, setup plus readiness, sticky actions</span></div>
+  <div class="design-note"><strong>States</strong><span>Untested, testing, tested, failed, loading, and empty discovery</span></div>
+  <div class="design-note"><strong>Scope</strong><span>No endpoint, persistence, route, or workflow changes</span></div>
+</div>
+
+<div class="state-grid">
+  <section class="state-shell">
+    <div class="state-label">Create mode</div>
+    <header class="builder-header">
+      <div>
+        <div class="eyebrow">SQLite connection</div>
+        <div class="title-row"><h3>New database connection</h3></div>
+        <p class="subtitle-copy">Register a trusted SQLite source, verify access, and make it available to data models.</p>
+      </div>
+      <div class="status-block"><span class="status-pill">Untested</span><small>Unsaved connection</small></div>
+    </header>
+    <div class="health-strip">
+      <div class="health-cell"><span>Driver</span><strong>SQLite</strong></div>
+      <div class="health-cell"><span>Database</span><strong class="good">Selected</strong></div>
+      <div class="health-cell"><span>Last test</span><strong class="warn">Not tested</strong></div>
+    </div>
+    <main class="builder-main">
+      <section class="section-card">
+        <div class="section-header">
+          <span class="section-number">01</span>
+          <span class="section-heading"><strong>Connection details</strong><small>Identity and database source</small></span>
+          <span class="section-state">Label required</span>
+          <span class="chevron">&#9662;</span>
+        </div>
+        <div class="form-grid">
+          <span class="field">Connection label<span class="input">Loan Book</span></span>
+          <span class="field">Database type<span class="input readonly">SQLite</span></span>
+          <span class="field wide">Database<span class="input">risk / loan_book<span class="select-arrow"></span></span></span>
+        </div>
+      </section>
+      <aside class="readiness-card">
+        <div class="readiness-header"><strong>Readiness</strong><span>2 of 3</span></div>
+        <div class="readiness-list">
+          <div class="readiness-item"><span class="readiness-dot good"></span><span>Connection label added.</span></div>
+          <div class="readiness-item"><span class="readiness-dot good"></span><span>SQLite database selected.</span></div>
+          <div class="readiness-item"><span class="readiness-dot"></span><span>Run a connection test.</span></div>
+        </div>
+        <p class="test-note"><strong>Connection-only test.</strong> Testing verifies that SQLite can be opened and queried. It does not inspect tables or columns.</p>
+      </aside>
+    </main>
+    <footer class="action-bar">
+      <span></span>
+      <div class="action-group"><span class="action-note">Ready to test</span><span class="button">Test connection</span><span class="button primary">Save Connection</span></div>
+    </footer>
+  </section>
+
+  <section class="state-shell">
+    <div class="state-label">Saved and tested mode</div>
+    <header class="builder-header">
+      <div>
+        <div class="eyebrow">SQLite connection</div>
+        <div class="title-row"><h3>Loan Book</h3><span class="locked">Name locked</span></div>
+        <p class="subtitle-copy">Register a trusted SQLite source, verify access, and make it available to data models.</p>
+      </div>
+      <div class="status-block"><span class="status-pill tested">Tested</span><small>Saved connection</small></div>
+    </header>
+    <div class="health-strip">
+      <div class="health-cell"><span>Driver</span><strong>SQLite</strong></div>
+      <div class="health-cell"><span>Database</span><strong class="good">Selected</strong></div>
+      <div class="health-cell"><span>Last test</span><strong class="good">16 Jul 2026</strong></div>
+    </div>
+    <main class="builder-main">
+      <section class="section-card">
+        <div class="section-header">
+          <span class="section-number">01</span>
+          <span class="section-heading"><strong>Connection details</strong><small>Identity and database source</small></span>
+          <span class="section-state complete">Complete</span>
+          <span class="chevron">&#9662;</span>
+        </div>
+        <div class="form-grid">
+          <span class="field">Connection label<span class="input readonly">Loan Book</span></span>
+          <span class="field">Database type<span class="input readonly">SQLite</span></span>
+          <span class="field wide">Database<span class="input">portfolio<span class="select-arrow"></span></span></span>
+        </div>
+      </section>
+      <aside class="readiness-card">
+        <div class="readiness-header"><strong>Readiness</strong><span>3 of 3</span></div>
+        <div class="readiness-list">
+          <div class="readiness-item"><span class="readiness-dot good"></span><span>Connection label saved.</span></div>
+          <div class="readiness-item"><span class="readiness-dot good"></span><span>SQLite database selected.</span></div>
+          <div class="readiness-item"><span class="readiness-dot good"></span><span>Connection test passed.</span></div>
+        </div>
+        <p class="test-note"><strong>Connection-only test.</strong> Testing verifies that SQLite can be opened and queried. It does not inspect tables or columns.</p>
+      </aside>
+    </main>
+    <p class="feedback">Connection test succeeded.</p>
+    <footer class="action-bar">
+      <span class="button danger">Drop</span>
+      <div class="action-group"><span class="action-note">Saved connection</span><span class="button">Test connection</span><span class="button primary">Save Connection</span></div>
+    </footer>
+  </section>
+</div>
+
+<div class="options approval-options">
+  <div class="option" data-choice="approve-focused-design" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content"><h3>Approve this design</h3><p>Use this structure and state model for implementation.</p></div>
+  </div>
+  <div class="option" data-choice="revise-focused-design" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content"><h3>Revise the design</h3><p>I want to adjust hierarchy, content, density, or actions before implementation.</p></div>
+  </div>
+</div>

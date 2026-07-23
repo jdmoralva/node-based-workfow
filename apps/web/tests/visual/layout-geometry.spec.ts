@@ -250,6 +250,49 @@ test.describe("@visual desktop layout geometry", () => {
     expect(builderBox.y + builderBox.height).toBeLessThanOrEqual(canvasAfter.y + canvasAfter.height);
   });
 
+  test(`/creditmodeler-service aligns saved Connection Builder controls`, async ({ page, request }) => {
+    test.skip(!process.env.E2E_AUTH_WITH_BACKEND, "Requires backend auth services and env wiring.");
+
+    const storageState = await createAuthenticatedStorageState(request);
+    await page.context().addCookies(storageState.cookies);
+    const savedConnection = {
+      id: "conn_1",
+      label: "Loan Book",
+      driver: "sqlite",
+      database_path: "risk/loan_book.sqlite",
+      created_at: "2026-07-16T10:00:00Z",
+      updated_at: "2026-07-16T10:00:00Z",
+      last_tested_at: "2026-07-16T10:05:00Z"
+    };
+    await page.route("**/api/connections", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ connections: [savedConnection] }) });
+    });
+    await page.route("**/api/connections/databases", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ databases: [{ value: "risk/loan_book.sqlite", label: "risk/loan_book" }] })
+      });
+    });
+    await page.route("**/api/connections/conn_1", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(savedConnection) });
+    });
+    await page.route("**/api/data-models", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [] }) });
+    });
+
+    await page.setViewportSize(creditModelerDesktopViewports.desktopStandard);
+    await page.goto("/creditmodeler-service");
+    await waitForStablePage(page);
+    await page.getByRole("button", { name: "Loan Book", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Loan Book" })).toBeVisible();
+
+    const labelInputBox = await measureElement(page.getByLabel("Connection label"));
+    const databaseTypeInputBox = await measureElement(page.getByLabel("Database type"));
+
+    expect(Math.abs(labelInputBox.y - databaseTypeInputBox.y)).toBeLessThanOrEqual(1);
+  });
+
   test(`/creditmodeler-service renders Data Model Builder without shifting shell geometry`, async ({ page, request }) => {
     test.skip(!process.env.E2E_AUTH_WITH_BACKEND, "Requires backend auth services and env wiring.");
 

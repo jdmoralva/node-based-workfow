@@ -66,6 +66,43 @@ test.describe("responsive layout coverage", () => {
   }
 
   for (const [viewportLabel, viewport] of viewportCases) {
+    test(`Connection Builder stacks readiness within the workbench canvas at ${viewportLabel}`, async ({ page, request }) => {
+      test.skip(!process.env.E2E_AUTH_WITH_BACKEND, "Requires backend auth services and env wiring.");
+
+      const storageState = await createAuthenticatedStorageState(request);
+      await page.context().addCookies(storageState.cookies);
+      await page.route("**/api/connections", async (route) => {
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ connections: [] }) });
+      });
+      await page.route("**/api/connections/databases", async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ databases: [{ value: "portfolio.db", label: "portfolio" }] })
+        });
+      });
+      await page.route("**/api/data-models", async (route) => {
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [] }) });
+      });
+
+      await page.setViewportSize(viewport);
+      await page.goto("/creditmodeler-service");
+      await waitForStablePage(page);
+      await page.getByRole("button", { name: "Connections", exact: true }).click();
+
+      const canvasBox = await measureElement(page.getByTestId("workbench-canvas"));
+      const builderBox = await measureElement(page.getByTestId("connection-builder"));
+      const setupBox = await measureElement(page.getByRole("region", { name: "Connection setup" }));
+      const readinessBox = await measureElement(page.getByRole("region", { name: "Connection readiness" }));
+
+      expect(builderBox.x).toBeGreaterThanOrEqual(canvasBox.x);
+      expect(builderBox.x + builderBox.width).toBeLessThanOrEqual(canvasBox.x + canvasBox.width + 1);
+      expect(readinessBox.y).toBeGreaterThan(setupBox.y + setupBox.height - 4);
+      await expect(page.getByRole("button", { name: "Test connection" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Save Connection" })).toBeVisible();
+      expect(await hasHorizontalOverflow(page)).toBe(false);
+    });
+
     test(`Data Model Builder remains within the workbench canvas at ${viewportLabel}`, async ({ page, request }) => {
       test.skip(!process.env.E2E_AUTH_WITH_BACKEND, "Requires backend auth services and env wiring.");
 

@@ -1,0 +1,443 @@
+<style>
+  .choice-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(260px, 1fr));
+    gap: 16px;
+  }
+
+  .design-choice {
+    overflow: hidden;
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    background: var(--bg-secondary);
+    cursor: pointer;
+    transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+  }
+
+  .design-choice:hover {
+    border-color: var(--accent);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+  }
+
+  .design-choice.selected {
+    border-color: var(--selected-border);
+    box-shadow: 0 0 0 3px var(--selected-bg);
+  }
+
+  .preview {
+    min-height: 500px;
+    color: #303544;
+    background: #f5f7fa;
+    font-family: Arial, sans-serif;
+    font-size: 10px;
+  }
+
+  .preview-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 17px 16px 14px;
+    border-bottom: 1px solid rgba(79, 88, 112, 0.12);
+    background: #fff;
+  }
+
+  .eyebrow {
+    margin-bottom: 3px;
+    color: #5c5d92;
+    font-size: 7px;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+  }
+
+  .preview h4 {
+    margin: 0;
+    color: #272c39;
+    font-size: 17px;
+    letter-spacing: -0.015em;
+  }
+
+  .description {
+    max-width: 290px;
+    margin-top: 5px;
+    color: #71798a;
+    font-size: 9px;
+    line-height: 1.4;
+  }
+
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 8px;
+    border: 1px solid rgba(183, 138, 42, 0.3);
+    border-radius: 999px;
+    background: #fff9e8;
+    color: #7b601a;
+    font-size: 7px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .status::before {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+    content: "";
+  }
+
+  .health {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    border-bottom: 1px solid rgba(79, 88, 112, 0.12);
+    background: rgba(79, 88, 112, 0.12);
+  }
+
+  .health div {
+    display: grid;
+    gap: 2px;
+    padding: 8px 12px;
+    background: #fafbfc;
+  }
+
+  .health span {
+    color: #89909e;
+    font-size: 6px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  .health strong {
+    color: #424858;
+    font-size: 9px;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 118px;
+    gap: 10px;
+    min-height: 328px;
+    padding: 12px;
+  }
+
+  .layout.single {
+    grid-template-columns: 1fr;
+  }
+
+  .section-card,
+  .side-card {
+    overflow: hidden;
+    border: 1px solid rgba(84, 93, 116, 0.16);
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  .section-head {
+    display: grid;
+    grid-template-columns: 23px 1fr auto;
+    align-items: center;
+    gap: 8px;
+    min-height: 46px;
+    padding: 0 10px;
+  }
+
+  .number {
+    width: 22px;
+    height: 22px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(116, 117, 168, 0.32);
+    border-radius: 5px;
+    background: #f0f0f8;
+    color: #5c5d92;
+    font-size: 7px;
+    font-weight: 700;
+  }
+
+  .section-title {
+    display: grid;
+    gap: 1px;
+  }
+
+  .section-title strong {
+    font-size: 10px;
+  }
+
+  .section-title small,
+  .section-state {
+    color: #8b919e;
+    font-size: 7px;
+  }
+
+  .section-state {
+    color: #94701d;
+    font-weight: 600;
+  }
+
+  .form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 11px;
+    padding: 13px;
+    border-top: 1px solid rgba(84, 93, 116, 0.12);
+    background: #fcfcfd;
+  }
+
+  .field {
+    display: grid;
+    gap: 5px;
+    color: #61697a;
+    font-size: 8px;
+    font-weight: 600;
+  }
+
+  .field.wide {
+    grid-column: 1 / -1;
+  }
+
+  .input {
+    min-height: 34px;
+    display: flex;
+    align-items: center;
+    padding: 0 9px;
+    border: 1px solid rgba(88, 97, 120, 0.22);
+    border-radius: 7px;
+    background: #f6f7f9;
+    color: #777e8d;
+    font-weight: 400;
+  }
+
+  .side-card {
+    align-self: start;
+  }
+
+  .side-title {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px;
+    border-bottom: 1px solid rgba(84, 93, 116, 0.12);
+    color: #464c5d;
+    font-size: 9px;
+    font-weight: 700;
+  }
+
+  .checklist {
+    display: grid;
+    gap: 0;
+    padding: 4px 9px;
+  }
+
+  .checklist div {
+    display: grid;
+    grid-template-columns: 6px 1fr;
+    gap: 6px;
+    padding: 8px 0;
+    border-top: 1px solid rgba(84, 93, 116, 0.09);
+    color: #737b8c;
+    line-height: 1.35;
+  }
+
+  .checklist div:first-child {
+    border-top: 0;
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    margin-top: 2px;
+    border-radius: 50%;
+    background: #bf922f;
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 7px;
+    min-height: 51px;
+    padding: 8px 12px;
+    border-top: 1px solid rgba(79, 88, 112, 0.14);
+    background: rgba(255, 255, 255, 0.97);
+  }
+
+  .button {
+    min-height: 31px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 10px;
+    border: 1px solid rgba(92, 100, 125, 0.24);
+    border-radius: 7px;
+    background: #fff;
+    color: #5d6480;
+    font-size: 8px;
+    font-weight: 700;
+  }
+
+  .button.primary {
+    border-color: #5c5d92;
+    background: #5c5d92;
+    color: #fff;
+  }
+
+  .choice-copy {
+    padding: 14px 15px 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .choice-copy h3 {
+    margin-bottom: 4px;
+    font-size: 15px;
+  }
+
+  .choice-copy p {
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .recommended {
+    display: inline-block;
+    margin-bottom: 7px;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: #eef0f8;
+    color: #5c5d92;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 1050px) {
+    .choice-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<h2>How closely should Connections mirror Data Models?</h2>
+<p class="subtitle">All three retain the existing connection behavior. Choose the amount of workbench structure that feels appropriate for this simpler task.</p>
+
+<div class="choice-grid cards">
+  <article class="design-choice card" data-choice="focused-workbench" onclick="toggleSelect(this)">
+    <div class="preview">
+      <div class="preview-header">
+        <div>
+          <div class="eyebrow">SQLite connection</div>
+          <h4>New database connection</h4>
+          <p class="description">Register a trusted SQLite source, verify access, and make it available to data models.</p>
+        </div>
+        <span class="status">Untested</span>
+      </div>
+      <div class="health">
+        <div><span>Driver</span><strong>SQLite</strong></div>
+        <div><span>Database</span><strong>Selected</strong></div>
+        <div><span>Last test</span><strong>Not tested</strong></div>
+      </div>
+      <div class="layout">
+        <section class="section-card">
+          <div class="section-head">
+            <span class="number">01</span>
+            <span class="section-title"><strong>Connection details</strong><small>Identity and database source</small></span>
+            <span class="section-state">Label required</span>
+          </div>
+          <div class="form">
+            <span class="field">Connection label<span class="input">Loan Book</span></span>
+            <span class="field">Database type<span class="input">SQLite</span></span>
+            <span class="field wide">Database<span class="input">risk / loan_book</span></span>
+          </div>
+        </section>
+        <aside class="side-card">
+          <div class="side-title"><span>Readiness</span><span>2 of 3</span></div>
+          <div class="checklist">
+            <div><span class="dot"></span><span>Add a unique label.</span></div>
+            <div><span class="dot" style="background:#4c8a70"></span><span>SQLite database selected.</span></div>
+            <div><span class="dot"></span><span>Run a connection test.</span></div>
+          </div>
+        </aside>
+      </div>
+      <div class="actions"><span class="button">Test connection</span><span class="button primary">Save Connection</span></div>
+    </div>
+    <div class="choice-copy">
+      <span class="recommended">Recommended</span>
+      <h3>Focused workbench</h3>
+      <p>Uses the same hierarchy as Data Models, but scales the inspector and health context to the three-step connection task.</p>
+    </div>
+  </article>
+
+  <article class="design-choice card" data-choice="single-column" onclick="toggleSelect(this)">
+    <div class="preview">
+      <div class="preview-header">
+        <div>
+          <div class="eyebrow">SQLite connection</div>
+          <h4>New database connection</h4>
+          <p class="description">Register a trusted SQLite source and verify access before saving.</p>
+        </div>
+        <span class="status">Untested</span>
+      </div>
+      <div class="layout single">
+        <section class="section-card">
+          <div class="section-head">
+            <span class="number">01</span>
+            <span class="section-title"><strong>Connection details</strong><small>Identity and database source</small></span>
+            <span class="section-state">Label required</span>
+          </div>
+          <div class="form">
+            <span class="field">Connection label<span class="input">Loan Book</span></span>
+            <span class="field">Database type<span class="input">SQLite</span></span>
+            <span class="field wide">Database<span class="input">risk / loan_book</span></span>
+          </div>
+        </section>
+      </div>
+      <div class="actions"><span class="button">Test connection</span><span class="button primary">Save Connection</span></div>
+    </div>
+    <div class="choice-copy">
+      <h3>Single-column alignment</h3>
+      <p>Adopts the Data Models header, section card, controls, and action bar without adding readiness metrics or a side panel.</p>
+    </div>
+  </article>
+
+  <article class="design-choice card" data-choice="literal-miniature" onclick="toggleSelect(this)">
+    <div class="preview">
+      <div class="preview-header">
+        <div>
+          <div class="eyebrow">SQLite connection</div>
+          <h4>New database connection</h4>
+          <p class="description">Register a trusted SQLite source, verify access, and monitor connection health.</p>
+        </div>
+        <span class="status">Draft</span>
+      </div>
+      <div class="health">
+        <div><span>Fields</span><strong>2 / 3</strong></div>
+        <div><span>Driver</span><strong>SQLite</strong></div>
+        <div><span>Checks</span><strong>1 gap</strong></div>
+      </div>
+      <div class="layout">
+        <div style="display:grid;align-content:start;gap:8px">
+          <section class="section-card">
+            <div class="section-head"><span class="number">01</span><span class="section-title"><strong>Identity</strong><small>Connection label</small></span><span class="section-state">Required</span></div>
+            <div class="form" style="grid-template-columns:1fr"><span class="field">Connection label<span class="input">Loan Book</span></span></div>
+          </section>
+          <section class="section-card">
+            <div class="section-head"><span class="number">02</span><span class="section-title"><strong>Database source</strong><small>Driver and discovered file</small></span><span class="section-state">Complete</span></div>
+            <div class="form" style="grid-template-columns:1fr"><span class="field">Database<span class="input">risk / loan_book</span></span></div>
+          </section>
+        </div>
+        <aside class="side-card">
+          <div class="side-title"><span>Diagnostics</span><span>1 item</span></div>
+          <div class="checklist"><div><span class="dot"></span><span>Connection has not been tested.</span></div><div><span class="dot" style="background:#4c8a70"></span><span>Database is available.</span></div></div>
+        </aside>
+      </div>
+      <div class="actions"><span class="button">Test connection</span><span class="button primary">Save Draft</span></div>
+    </div>
+    <div class="choice-copy">
+      <h3>Literal miniature</h3>
+      <p>Copies nearly every Data Models pattern, including multiple sections, health metrics, diagnostics, and draft language.</p>
+    </div>
+  </article>
+</div>
